@@ -17,8 +17,11 @@ def _require_text(value: str, label: str) -> None:
         raise DomainError(f"{label} must not be blank")
 
 
+ZERO_DURATION = timedelta(0)
+
+
 def _require_utc(value: datetime, label: str) -> None:
-    if value.tzinfo is None or value.utcoffset() != timedelta(0):
+    if value.tzinfo is None or value.utcoffset() != ZERO_DURATION:
         raise DomainError(f"{label} must be a timezone-aware UTC datetime")
 
 
@@ -45,12 +48,20 @@ class Fact:
         _require_utc(self.created_at, "created_at")
         if self.profile_key is not None:
             _require_text(self.profile_key, "profile key")
+        if self.superseded_by is not None:
+            self._check_superseded_by(self.superseded_by)
+
+    def _check_superseded_by(self, by_fact_id: str) -> None:
+        _require_text(by_fact_id, "superseded_by")
+        if by_fact_id == self.id:
+            raise DomainError("a fact cannot supersede itself")
 
     @property
     def is_active(self) -> bool:
         return self.superseded_by is None
 
     def mark_superseded(self, by_fact_id: str) -> "Fact":
+        self._check_superseded_by(by_fact_id)
         return replace(self, superseded_by=by_fact_id)
 
 
@@ -85,3 +96,7 @@ class Skill:
         _require_text(self.name, "skill name")
         _require_text(self.description, "skill description")
         _require_utc(self.created_at, "created_at")
+        if not isinstance(self.steps, tuple) or not self.steps:
+            raise DomainError("skill steps must be a non-empty tuple")
+        for step in self.steps:
+            _require_text(step, "skill step")

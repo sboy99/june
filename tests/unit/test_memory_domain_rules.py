@@ -13,6 +13,7 @@ from june.memory.domain import (
     recency_decay,
     supersede,
 )
+from june.shared import DomainError
 
 pytestmark = pytest.mark.unit
 
@@ -126,8 +127,28 @@ def test_decay_clamps_future_dated_memory():
 
 
 def test_decay_rejects_non_positive_half_life():
-    with pytest.raises(ValueError):
+    with pytest.raises(DomainError):
         recency_decay(T0, T0, half_life=timedelta(0))
+    with pytest.raises(DomainError):
+        recency_decay(T0, T0, half_life=-DAY)
+
+
+def test_decay_never_underflows_to_zero():
+    assert 0 < recency_decay(T0, T0 + 100_000 * DAY, half_life=DAY) <= 1
+
+
+def test_supersede_excludes_the_new_fact_itself():
+    new = fact(id="f2", profile_key="name")
+
+    assert supersede([fact(id="f1", profile_key="name"), new], new) == (
+        fact(id="f1", profile_key="name", superseded_by="f2"),
+    )
+
+
+@pytest.mark.parametrize("field", ["episode_retention", "superseded_grace"])
+def test_retention_policy_rejects_negative_durations(field):
+    with pytest.raises(DomainError):
+        RetentionPolicy(**{field: -DAY})
 
 
 # retention

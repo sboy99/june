@@ -100,8 +100,26 @@ def test_skill_holds_ordered_steps():
 
 def test_skill_rejects_blank_name_description_and_naive_time():
     with pytest.raises(DomainError):
-        Skill(name=" ", description="d", steps=(), created_at=T0)
+        Skill(name=" ", description="d", steps=("s",), created_at=T0)
     with pytest.raises(DomainError):
-        Skill(name="n", description=" ", steps=(), created_at=T0)
+        Skill(name="n", description=" ", steps=("s",), created_at=T0)
     with pytest.raises(DomainError):
-        Skill(name="n", description="d", steps=(), created_at=datetime(2026, 1, 1))
+        Skill(name="n", description="d", steps=("s",), created_at=datetime(2026, 1, 1))
+
+
+@pytest.mark.parametrize("superseded_by", ["", "  ", "f1"])
+def test_fact_rejects_blank_or_self_superseded_by(superseded_by):
+    with pytest.raises(DomainError):
+        make_fact(superseded_by=superseded_by)
+
+
+@pytest.mark.parametrize("by_fact_id", ["", " ", "f1"])
+def test_mark_superseded_rejects_blank_or_self_id(by_fact_id):
+    with pytest.raises(DomainError):
+        make_fact().mark_superseded(by_fact_id)
+
+
+@pytest.mark.parametrize("steps", [(), ["boil"], ("boil", " ")])
+def test_skill_requires_non_empty_tuple_of_non_blank_steps(steps):
+    with pytest.raises(DomainError):
+        Skill(name="n", description="d", steps=steps, created_at=T0)
