@@ -13,6 +13,7 @@ class AgentError(Exception):
 
     code: ClassVar[str] = "agent_error"
     default_retryable: ClassVar[bool] = False
+    retry_override_allowed: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -22,6 +23,8 @@ class AgentError(Exception):
         cause: BaseException | None = None,
     ) -> None:
         super().__init__(message)
+        if retryable and not self.retry_override_allowed:
+            raise ValueError(f"{type(self).__name__} is never retryable")
         self.retryable: bool = self.default_retryable if retryable is None else retryable
         if cause is not None:
             self.__cause__ = cause
@@ -68,12 +71,14 @@ class SafetyDenied(AgentError):
     """A safety gate blocked the action. Never retried."""
 
     code = "safety_denied"
+    retry_override_allowed = False
 
 
 class BudgetExceeded(AgentError):
     """Steps, tokens or time budget for a turn was exceeded. Never retried."""
 
     code = "budget_exceeded"
+    retry_override_allowed = False
 
 
 class ToolError(AgentError):

@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from june.shared import ConfigError
 
 
 class Settings(BaseSettings):
@@ -14,3 +17,14 @@ class Settings(BaseSettings):
     data_dir: Path = Path("./data")
     log_level: str = "INFO"
     llm_provider: str = "mock"
+
+
+def load_settings() -> Settings:
+    """Load settings, reporting invalid values as a `ConfigError`."""
+    try:
+        return Settings()
+    except ValidationError as exc:
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in err['loc'])}: {err['msg']}" for err in exc.errors()
+        )
+        raise ConfigError(f"invalid configuration: {problems}") from exc

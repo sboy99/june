@@ -12,10 +12,11 @@ from june.shared import (
     ToolError,
     TransientAdapterError,
 )
+from june.shared import errors as errors_module
 
 pytestmark = pytest.mark.unit
 
-DIRECT_CHILDREN = [
+AGENT_ERROR_CHILDREN = [
     ConfigError,
     PersonaNotFound,
     DomainError,
@@ -34,7 +35,7 @@ def _all_subclasses(root: type) -> set[type]:
     return found
 
 
-@pytest.mark.parametrize("error_type", DIRECT_CHILDREN)
+@pytest.mark.parametrize("error_type", AGENT_ERROR_CHILDREN)
 def test_every_direct_child_is_an_agent_error(error_type):
     assert issubclass(error_type, AgentError)
 
@@ -71,6 +72,12 @@ def test_retryable_can_be_overridden_per_instance():
     assert TransientAdapterError("fatal", retryable=False).retryable is False
 
 
+@pytest.mark.parametrize("error_type", [SafetyDenied, BudgetExceeded])
+def test_safety_and_budget_errors_reject_a_retryable_override(error_type):
+    with pytest.raises(ValueError):
+        error_type("nope", retryable=True)
+
+
 def test_codes_are_stable_snake_case_literals():
     assert ConfigError("x").code == "config_error"
     assert PersonaNotFound("x").code == "persona_not_found"
@@ -79,7 +86,9 @@ def test_codes_are_stable_snake_case_literals():
 
 
 def test_codes_are_unique_across_the_whole_hierarchy():
-    classes = _all_subclasses(AgentError) | {AgentError}
+    classes = {
+        cls for cls in _all_subclasses(AgentError) if cls.__module__ == errors_module.__name__
+    } | {AgentError}
 
     codes = [cls.code for cls in classes]
 

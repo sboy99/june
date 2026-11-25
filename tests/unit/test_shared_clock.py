@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -31,3 +31,13 @@ def test_fixed_clock_can_be_advanced():
 def test_fixed_clock_rejects_naive_datetimes():
     with pytest.raises(ValueError):
         FixedClock(datetime(2026, 1, 1))
+
+
+def test_fixed_clock_normalises_non_utc_datetimes_to_utc():
+    plus_five = timezone(timedelta(hours=5))
+
+    now = FixedClock(datetime(2026, 1, 2, 8, 4, 5, tzinfo=plus_five)).now()
+
+    assert now == START
+    assert now.utcoffset() == timedelta(0)
+    assert now.tzinfo is UTC

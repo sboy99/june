@@ -18,4 +18,6 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.
 - **Retryable** [shared]: whether the runtime may safely retry the failed operation; false unless the error says otherwise.
 - **Adapter error** [shared]: an `AdapterError` raised at an adapter boundary; transient (retryable, e.g. timeout) or permanent (not retryable, e.g. bad API key).
+- **Clock** [shared]: the source of the current time; a `Clock` port with a real `SystemClock` and a test `FixedClock`, always returning timezone-aware UTC.
+- **Id generator** [shared]: the source of new opaque ids (32 lowercase hex characters); an `IdGenerator` port with a `UuidGenerator` default, which tests replace with a fake.
 - **Risk level** [safety]: the classified danger of an action, which decides which gates apply.

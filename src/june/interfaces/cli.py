@@ -4,14 +4,14 @@ import sys
 from importlib.metadata import version
 
 from june.composition import build_app
-from june.config import Settings
+from june.config import load_settings
 from june.shared import AgentError
 
 
 def main() -> int:
     """Boot the application and print a readiness line."""
     try:
-        app = build_app(Settings())
+        app = build_app(load_settings())
     except AgentError as exc:
         print(f"june: error: {exc}", file=sys.stderr)
         return 1
