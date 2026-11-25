@@ -1,6 +1,6 @@
 # 01: Implement shared errors, ids and clock
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 
 Implement the whole spec at `.scratch/shared-errors-ids-clock/spec.md` (SHIP-310). It is small and cohesive, so it is a single ticket.

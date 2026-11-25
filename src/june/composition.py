@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from june.config import Settings
-from june.shared import PersonaNotFoundError
+from june.shared import PersonaNotFound
 
 
 @dataclass(frozen=True)
@@ -20,9 +20,9 @@ def load_persona(settings: Settings) -> str:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
-        raise PersonaNotFoundError(f"persona file not found or unreadable: {path}") from exc
+        raise PersonaNotFound(f"persona file not found or unreadable: {path}") from exc
     if not text.strip():
-        raise PersonaNotFoundError(f"persona file is empty: {path}")
+        raise PersonaNotFound(f"persona file is empty: {path}")
     return text
 
 
