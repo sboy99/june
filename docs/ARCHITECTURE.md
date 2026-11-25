@@ -17,7 +17,7 @@ A modular agent whose boundaries are enforced by tooling, so vendors can change 
 - `composition.py`: the only place where wiring happens
 
 ## Dependency rule and the five contracts
-Higher layers import lower ones, never the reverse. Layers, top to bottom: interfaces and scheduling; runtime; conversation, memory, safety, tooling and llm (independent of each other); observability and shared. The contracts in `.importlinter`, run by `make arch`:
+Higher layers import lower ones, never the reverse. Layers, top to bottom: interfaces and scheduling; runtime; conversation, memory, safety, tooling and llm (independent of each other); observability; shared (observability may import shared, never the reverse). The contracts in `.importlinter`, run by `make arch`:
 
 1. **Module layers**: the ordering above; same-level modules never import each other.
 2. **Inside memory**: adapters over application over domain.

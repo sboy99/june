@@ -21,3 +21,9 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Clock** [shared]: the source of the current time; a `Clock` port with a real `SystemClock` and a test `FixedClock`, always returning timezone-aware UTC.
 - **Id generator** [shared]: the source of new opaque ids (32 lowercase hex characters); an `IdGenerator` port with a `UuidGenerator` default, which tests replace with a fake.
 - **Risk level** [safety]: the classified danger of an action, which decides which gates apply.
+- **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
+- **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
+- **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.
+- **User id** [observability]: id of the user whose action caused a log line, carried in the request context.
+- **Redaction** [observability]: masking secrets with the constant marker `[REDACTED]` on every log line, by sensitive key name and by value pattern.
+- **Content digest** [observability]: size (characters) plus truncated SHA-256 hash logged in place of a prompt or tool output; full text is added only at DEBUG.

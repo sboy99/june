@@ -9,7 +9,8 @@ layers =
     june.interfaces | june.scheduling
     june.runtime
     june.conversation | june.memory | june.safety | june.tooling | june.llm
-    june.observability | june.shared
+    june.observability
+    june.shared
 
 [importlinter:contract:2]
 name = Inside memory

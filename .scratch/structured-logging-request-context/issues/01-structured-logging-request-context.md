@@ -1,6 +1,6 @@
 # 01: Implement structured logging with request context
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 
 Implement the whole spec at `.scratch/structured-logging-request-context/spec.md` (SHIP-311). It is small and cohesive, so it is a single ticket.
