@@ -3,17 +3,18 @@
 import logging
 import re
 
+from june.observability.record_fields import STANDARD_ATTRS
+
 REDACTED = "[REDACTED]"
 
-_SENSITIVE_KEY_PARTS = ("apikey", "token", "password", "secret", "authorization", "cookie")
+# Single source of truth; `_` marks an optional separator (`api_key`, `api-key`, `apikey`).
+_SENSITIVE_WORDS = ("api_key", "token", "password", "secret", "authorization", "cookie")
+_SENSITIVE_KEY_PARTS = tuple(word.replace("_", "") for word in _SENSITIVE_WORDS)
+_SENSITIVE_WORD_REGEX = "|".join(word.replace("_", "[_-]?") for word in _SENSITIVE_WORDS)
 _VALUE_PATTERNS = (
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"\bsk-[A-Za-z0-9_-]{8,}"),
-    re.compile(r"(?i)\b(?:api[_-]?key|token|password|secret|authorization|cookie)\b\s*[=:]\s*\S+"),
-)
-
-_STANDARD_ATTRS = frozenset(
-    logging.makeLogRecord({}).__dict__.keys() | {"message", "asctime", "taskName"}
+    re.compile(r"\bsk-[A-Za-z0-9_-]{6,}"),
+    re.compile(rf"""(?ix)\b(?:{_SENSITIVE_WORD_REGEX})\b["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|\S+)"""),
 )
 
 
@@ -53,31 +54,26 @@ class RedactionFilter(logging.Filter):
     """Handler filter masking secrets in the message, extra fields and exception text."""
 
     def filter(self, record: logging.LogRecord) -> logging.LogRecord:
-        clean = logging.makeLogRecord(record.__dict__)
+        masked_record = logging.makeLogRecord(record.__dict__)
         try:
-            clean.msg = redact_text(record.getMessage())
+            masked_record.msg = redact_text(record.getMessage())
         except Exception:
-            clean.msg = REDACTED
-        clean.args = None
-        for key in record.__dict__.keys() - _STANDARD_ATTRS:
-            clean.__dict__[key] = (
+            masked_record.msg = REDACTED
+        masked_record.args = None
+        for key in record.__dict__.keys() - STANDARD_ATTRS:
+            masked_record.__dict__[key] = (
                 REDACTED if is_sensitive_key(key) else redact_value(record.__dict__[key])
             )
-        clean.exc_text = _redacted_exception(record)
-        clean.exc_info = None
-        clean.stack_info = redact_text(record.stack_info) if record.stack_info else None
-        return clean
+        masked_record.exc_text = _masked_exception_text(record)
+        masked_record.exc_info = None
+        masked_record.stack_info = redact_text(record.stack_info) if record.stack_info else None
+        return masked_record
 
 
-def _redacted_exception(record: logging.LogRecord) -> str | None:
+def _masked_exception_text(record: logging.LogRecord) -> str | None:
     try:
         if record.exc_info:
             return redact_text(logging.Formatter().formatException(record.exc_info))
         return redact_text(record.exc_text) if record.exc_text else None
     except Exception:
         return REDACTED
-
-
-def extra_fields(record: logging.LogRecord) -> dict[str, object]:
-    """Return the caller-supplied extra fields of a record."""
-    return {k: v for k, v in record.__dict__.items() if k not in _STANDARD_ATTRS}

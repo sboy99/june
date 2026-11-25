@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from june.shared import IdGenerator, UuidGenerator
 
+_DEFAULT_IDS = UuidGenerator()
 _trace_id: ContextVar[str | None] = ContextVar("june_trace_id", default=None)
 _session_id: ContextVar[str | None] = ContextVar("june_session_id", default=None)
 _user_id: ContextVar[str | None] = ContextVar("june_user_id", default=None)
@@ -56,16 +57,16 @@ def request_context(
 
 def new_trace_id(ids: IdGenerator | None = None) -> str:
     """Return a fresh trace id from the given generator (default: shared UUID generator)."""
-    return (ids or UuidGenerator()).new_id()
+    return (ids or _DEFAULT_IDS).new_id()
 
 
 class ContextFilter(logging.Filter):
     """Copy the current request context onto every record."""
 
     def filter(self, record: logging.LogRecord) -> logging.LogRecord:
-        tagged = logging.makeLogRecord(record.__dict__)
+        with_context = logging.makeLogRecord(record.__dict__)
         context = current_context()
-        tagged.trace_id = context.trace_id
-        tagged.session_id = context.session_id
-        tagged.user_id = context.user_id
-        return tagged
+        with_context.trace_id = context.trace_id
+        with_context.session_id = context.session_id
+        with_context.user_id = context.user_id
+        return with_context
