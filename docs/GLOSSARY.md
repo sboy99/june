@@ -8,6 +8,11 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Episode** [memory]: a stored summary of something that happened, kept for later recall.
 - **Fact** [memory]: a small, durable statement about the user or the world.
 - **Skill** [memory]: a reusable procedure the agent has learned and can replay.
+- **Profile key** [memory]: an optional label on a Fact (for example `name`, `timezone`) naming a single-valued attribute of the user; compared trimmed and case-insensitively.
+- **Supersede** [memory]: replace a user's active Fact with a newer Fact that has the same Profile key; the old Fact is kept, marked as superseded by the new one.
+- **Active fact** [memory]: a Fact that has not been superseded.
+- **Recency decay** [memory]: a factor in (0, 1] that falls with a memory's age by half-life, so recall can favour newer memories.
+- **Retention** [memory]: the rules for when old memory may be forgotten: consolidated Episodes after a retention period, superseded Facts after a grace period; pending Episodes and active Facts never expire.
 - **Persona** [persona/SOUL.md]: the agent's identity, tone and values, loaded at startup and read-only to the agent.
 - **Gate** [safety]: a check that must pass before an action runs.
 - **Port** [each module's `ports.py`]: a `typing.Protocol` describing what a module needs from the outside.

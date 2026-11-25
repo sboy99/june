@@ -1,6 +1,6 @@
 # 01: Implement memory domain model and rules
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 
 Implement the whole spec at `.scratch/memory-domain-model-and-rules/spec.md` (SHIP-318). It is small and cohesive, so it is a single ticket.
