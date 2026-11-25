@@ -27,3 +27,8 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **User id** [observability]: id of the user whose action caused a log line, carried in the request context.
 - **Redaction** [observability]: masking secrets with the constant marker `[REDACTED]` on every log line, by sensitive key name and by value pattern.
 - **Content digest** [observability]: size (characters) plus truncated SHA-256 hash logged in place of a prompt or tool output; full text is added only at DEBUG.
+- **Message** [llm]: one immutable conversation entry with a role (`system`, `user`, `assistant` or `tool`); assistant messages may carry tool calls, tool messages carry a tool result.
+- **Tool call** [llm]: the model's request to run a named tool with arguments; answered by a tool result carrying the same call id.
+- **Stop reason** [llm]: why the model stopped: `end_turn`, `tool_use` (it asked for tools) or `max_tokens`.
+- **Usage** [llm]: input and output token counts for one model call.
+- **Chat model** [llm]: the `ChatModel` port; one async `complete` call turns messages into a `ChatResponse`.
