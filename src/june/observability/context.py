@@ -5,7 +5,7 @@ and stay isolated between concurrent requests.
 """
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -41,7 +41,7 @@ def request_context(
     trace_id: str | None = None,
     session_id: str | None = None,
     user_id: str | None = None,
-) -> Iterator[None]:
+) -> Generator[None, None, None]:
     """Bind the given ids for the duration of the block; unspecified ids keep their value."""
     tokens = [
         (var, var.set(value))
