@@ -1,0 +1,1 @@
+"""Clock helpers (stub)."""

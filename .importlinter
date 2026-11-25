@@ -1,0 +1,86 @@
+[importlinter]
+root_package = june
+include_external_packages = True
+
+[importlinter:contract:1]
+name = Module layers
+type = layers
+layers =
+    june.interfaces | june.scheduling
+    june.runtime
+    june.conversation | june.memory | june.safety | june.tooling | june.llm
+    june.observability | june.shared
+
+[importlinter:contract:2]
+name = Inside memory
+type = layers
+layers =
+    june.memory.adapters
+    june.memory.application
+    june.memory.domain
+
+[importlinter:contract:3]
+name = Pure domain
+type = forbidden
+source_modules =
+    june.memory.domain
+forbidden_modules =
+    pydantic
+    sqlite3
+    httpx
+    anthropic
+    openai
+    asyncio
+    june.memory.adapters
+
+[importlinter:contract:4]
+name = Adapters private
+type = forbidden
+source_modules =
+    june.interfaces
+    june.runtime
+    june.observability
+    june.shared
+    june.config
+    june.memory.domain
+    june.memory.application
+    june.memory.ports
+    june.safety.ports
+    june.conversation.ports
+    june.tooling.ports
+    june.scheduling.ports
+    june.llm.ports
+forbidden_modules =
+    june.memory.adapters
+    june.safety.adapters
+    june.conversation.adapters
+    june.tooling.adapters
+    june.scheduling.adapters
+    june.llm.adapters
+allow_indirect_imports = True
+
+[importlinter:contract:5]
+name = Vendor SDKs stay in adapters
+type = forbidden
+source_modules =
+    june.interfaces
+    june.runtime
+    june.observability
+    june.shared
+    june.config
+    june.composition
+    june.memory.domain
+    june.memory.application
+    june.memory.ports
+    june.safety.ports
+    june.conversation.ports
+    june.tooling.ports
+    june.scheduling.ports
+    june.llm.ports
+forbidden_modules =
+    anthropic
+    openai
+    httpx
+    sqlite3
+    docker
+allow_indirect_imports = True

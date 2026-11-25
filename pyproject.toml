@@ -1,0 +1,53 @@
+[project]
+name = "june"
+version = "0.1.0"
+description = "A modular AI agent built as a hexagonal modular monolith."
+readme = "README.md"
+authors = [
+    { name = "sboy99", email = "shadowboy191@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic-settings>=2.4",
+]
+
+[project.scripts]
+june = "june.interfaces.cli:main"
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.0",
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "unit: fast isolated tests",
+    "contract: architecture contract tests",
+    "e2e: end-to-end tests through the CLI",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ANN", "D100"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "D100"]
+
+[tool.mypy]
+strict = true
+files = ["src/june"]
