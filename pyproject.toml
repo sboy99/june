@@ -5,7 +5,10 @@ description = "A modular AI agent built as a hexagonal modular monolith."
 readme = "README.md"
 authors = [{ name = "sboy99", email = "shadowboy191@gmail.com" }]
 requires-python = ">=3.12"
-dependencies = ["pydantic-settings>=2.4"]
+dependencies = [
+    "openai>=1.50",
+    "pydantic-settings>=2.4",
+]
 
 [project.scripts]
 june = "june.interfaces.cli:main"

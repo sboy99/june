@@ -29,6 +29,7 @@ forbidden_modules =
     pydantic
     sqlite3
     httpx
+    httpx2
     anthropic
     openai
     asyncio
@@ -82,6 +83,7 @@ forbidden_modules =
     anthropic
     openai
     httpx
+    httpx2
     sqlite3
     docker
 allow_indirect_imports = True
