@@ -64,6 +64,7 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Memory-write gate** [safety] (`MemoryWriteGate`): Gate 3; denies secrets, planted standing instructions and injection phrases before text is stored as a Fact, Episode or Skill.
 - **Write guard** [memory] (`WriteGuard`): the memory-owned port that decides whether a text may be stored; `RememberFact`, `RememberEpisode` and `GuardedSkillStore` ask it first, and Consolidation skips a denied candidate.
 - **End-loop gate** [safety] (`EndLoopGate`): Gate 4; redacts secrets in the final reply, denies an empty or oversize reply, and fails open (returns the redacted reply) if a checker breaks.
+- **Protected paths** [safety] (`ProtectedPaths`): the roots (`persona/`, `skills/`) the agent may not write to; the Tool gate denies write-tool calls aimed at them (a skill-management tool may write under `skills/` only) and the memory-write Gate denies text that orders such a write.
 - **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
 - **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
 - **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.

@@ -2,7 +2,9 @@
 
 from june.observability.redaction import redact_text
 from june.safety.adapters.patterns import INJECTION_RULES, PatternClassifier, PatternRule
+from june.safety.adapters.protected_text import ProtectedPathClassifier
 from june.safety.ports import Classifier, Verdict
+from june.safety.protected_paths import ProtectedPaths
 
 
 class SecretClassifier:
@@ -46,10 +48,17 @@ POISONING_RULES = (
 )
 
 
-def memory_write_classifier() -> Classifier:
-    """Classifier for the memory-write Gate: secrets, poisoning and injection phrases."""
-    return CompositeClassifier(
+def memory_write_classifier(protected: ProtectedPaths | None = None) -> Classifier:
+    """Classifier for the memory-write Gate.
+
+    Checks secrets, poisoning and injection phrases, and writes to protected paths
+    when `protected` is given.
+    """
+    classifiers: list[Classifier] = [
         SecretClassifier(),
         PatternClassifier(POISONING_RULES),
         PatternClassifier(INJECTION_RULES),
-    )
+    ]
+    if protected is not None:
+        classifiers.append(ProtectedPathClassifier(protected))
+    return CompositeClassifier(*classifiers)

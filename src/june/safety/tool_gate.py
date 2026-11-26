@@ -6,7 +6,8 @@ from typing import Any
 
 from june.observability import get_logger
 from june.safety.decision import decide
-from june.safety.ports import Approver, Judge, RiskLevel, Verdict
+from june.safety.ports import Approver, Classifier, Judge, RiskLevel, Verdict
+from june.safety.protected_paths import ProtectedPaths
 from june.shared.errors import SafetyDenied
 
 _log = get_logger(__name__)
@@ -26,6 +27,18 @@ class _ToolRiskClassifier:
         return self._verdict
 
 
+PATH_ARGUMENTS = ("path", "file", "filename", "dest", "destination", "target")
+SKILLS_ROOT = "skills"
+
+
+class _FixedClassifier:
+    def __init__(self, verdict: Verdict) -> None:
+        self._verdict = verdict
+
+    def classify(self, text: str) -> Verdict:
+        return self._verdict
+
+
 class ToolGate:
     """Checks one tool call; raises `SafetyDenied` unless it may run."""
 
@@ -35,20 +48,42 @@ class ToolGate:
         approver: Approver | None = None,
         judge: Judge | None = None,
         default_risk: RiskLevel = "high",
+        protected: ProtectedPaths | None = None,
+        write_tools: frozenset[str] = frozenset(),
+        skill_tools: frozenset[str] = frozenset(),
     ) -> None:
         self._risks = dict(risks)
         self._approver = approver
         self._judge = judge
         self._default_risk = default_risk
+        self._protected = protected
+        self._write_tools = write_tools
+        self._skill_tools = skill_tools
 
     async def check(self, name: str, arguments: Mapping[str, Any]) -> None:
         subject = f"{name} {json.dumps(dict(arguments), sort_keys=True, default=str)}"
-        classifier = _ToolRiskClassifier(self._risks.get(name, self._default_risk))
+        classifier = self._classifier_for(name, arguments)
         verdict = await decide("tool", subject, classifier, self._judge)
         if verdict.decision == "deny":
             raise SafetyDenied(f"tool gate denied {name}: {verdict.reason}")
         if verdict.decision == "ask" and not await self._approved(name, arguments):
             raise SafetyDenied(f"tool gate denied {name}: approval not given")
+
+    def _classifier_for(self, name: str, arguments: Mapping[str, Any]) -> Classifier:
+        root = self._violated_root(name, arguments)
+        if root is not None:
+            return _FixedClassifier(Verdict("deny", "high", f"write to protected root {root}"))
+        return _ToolRiskClassifier(self._risks.get(name, self._default_risk))
+
+    def _violated_root(self, name: str, arguments: Mapping[str, Any]) -> str | None:
+        if self._protected is None or name not in self._write_tools:
+            return None
+        for key in PATH_ARGUMENTS:
+            value = arguments.get(key)
+            root = self._protected.root_of(value) if isinstance(value, str) else None
+            if root is not None and not (root == SKILLS_ROOT and name in self._skill_tools):
+                return root
+        return None
 
     async def _approved(self, name: str, arguments: Mapping[str, Any]) -> bool:
         approved = False

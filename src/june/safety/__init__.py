@@ -15,6 +15,7 @@ from june.safety.ports import (
     RiskLevel,
     Verdict,
 )
+from june.safety.protected_paths import ProtectedPaths
 from june.safety.tool_gate import ToolGate
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "GatePolicy",
     "InputGate",
     "Judge",
+    "ProtectedPaths",
     "RiskLevel",
     "MemoryWriteGate",
     "ToolGate",
