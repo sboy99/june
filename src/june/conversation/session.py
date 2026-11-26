@@ -57,4 +57,3 @@ class Session:
     def with_turn(self, turn: Turn) -> Self:
         """Return a copy of this session with `turn` appended."""
         return replace(self, turns=(*self.turns, turn))
-
