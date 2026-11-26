@@ -55,6 +55,9 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Classifier** [safety]: the port for a cheap, synchronous, rule-based check of a text that returns a Verdict.
 - **Judge** [safety]: the port for an async, model-backed check that returns a Verdict; the composition root supplies the model.
 - **Gate policy** [safety] (`GatePolicy`): one row of the table saying what a Gate checks, which Decisions it may return, what it does when its checker fails, and which fields it logs.
+- **Decision step** [safety] (`decide`, `enforce`): the shared routine every Gate runs: Classifier, optional Judge for medium-risk allows, fail-closed on checker error, one log line with a subject digest; `enforce` raises `SafetyDenied` on `deny`.
+- **Input gate** [safety] (`InputGate`): Gate 1; denies prompt-injection phrases in user messages and fetched content and wraps fetched content as Untrusted content.
+- **Untrusted content** [safety]: fetched content wrapped in an `untrusted_content` block with its source, so the model treats it as data, never instructions.
 - **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
 - **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
 - **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.
