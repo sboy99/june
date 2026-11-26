@@ -4,17 +4,13 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
 
+from june.memory.domain.helper import require_text
 from june.shared import DomainError
 
 
 class EpisodeStatus(StrEnum):
     PENDING = "pending"
     CONSOLIDATED = "consolidated"
-
-
-def require_text(value: str, label: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise DomainError(f"{label} must not be blank")
 
 
 ZERO_DURATION = timedelta(0)

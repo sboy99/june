@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol, get_args
 
 from june.memory.domain import Episode, EpisodeStatus, Fact, Skill
-from june.memory.domain.types import require_text
+from june.memory.domain.helper import require_text
 from june.shared import DomainError
 
 Vector = tuple[float, ...]
