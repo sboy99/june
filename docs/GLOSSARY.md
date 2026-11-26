@@ -20,6 +20,7 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Vector** [memory]: an immutable tuple of finite floats an Embedder produces for a text.
 - **Search filter** [memory]: optional narrowing of a vector index search or listing by kind (`fact` or `episode`), active facts only, or episode status.
 - **Search hit** [memory] (`SearchHit`): an Index entry returned by a search with its cosine similarity score, best first.
+- **Recalled memory** [memory] (`RecalledMemory`): a Fact or Episode returned by recall with its cosine similarity, its Recency decay and the final score (similarity times decay).
 - **Fact candidate** [memory]: a fact (text and optional Profile key) proposed by the summarizer; supersede and dedupe rules decide what becomes a Fact.
 - **Transcript turn** [memory]: one user or assistant message handed to the summarizer; tool activity is not representable.
 - **Persona** [persona/SOUL.md]: the agent's identity, tone and values, loaded at startup and read-only to the agent.

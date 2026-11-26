@@ -1,5 +1,12 @@
 """Memory: stores and recalls facts, episodes and skills."""
 
+from june.memory.application import (
+    Forget,
+    Recall,
+    RecalledMemory,
+    RememberEpisode,
+    RememberFact,
+)
 from june.memory.ports import (
     Embedder,
     EmbedderInfo,
@@ -16,6 +23,11 @@ from june.memory.ports import (
 )
 
 __all__ = [
+    "Forget",
+    "Recall",
+    "RecalledMemory",
+    "RememberEpisode",
+    "RememberFact",
     "Embedder",
     "EmbedderInfo",
     "EntryKind",
