@@ -110,3 +110,27 @@ def test_unusable_data_dir_is_a_config_error(persona, tmp_path):
 
     with pytest.raises(ConfigError):
         build_app(Settings(persona_path=persona, data_dir=blocker / "data"))
+
+
+def test_app_exposes_a_sqlite_session_store(persona, tmp_path):
+    from june.conversation.adapters.sqlite import SqliteSessionStore
+
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    assert isinstance(app.session_store, SqliteSessionStore)
+
+
+def test_app_exposes_a_context_builder_holding_the_persona(persona, tmp_path):
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    messages = app.context_builder.build("hello")
+
+    assert messages[0].content == "be kind"
+
+
+async def test_app_exposes_an_agent_loop_over_the_chat_model(persona, tmp_path):
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    result = await app.agent_loop.run(app.context_builder.build("hello"))
+
+    assert result.reply == "echo: hello"

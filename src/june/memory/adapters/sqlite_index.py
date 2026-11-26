@@ -13,6 +13,7 @@ from typing import Any
 from june.memory.domain import Episode, EpisodeStatus, Fact
 from june.memory.ports import EmbedderInfo, IndexEntry, SearchFilter, SearchHit, Vector
 from june.shared import AdapterError, DomainError, PermanentAdapterError, TransientAdapterError
+from june.shared.helpers import require_adapter_text
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS entries (
@@ -33,11 +34,6 @@ CREATE INDEX IF NOT EXISTS entries_user_kind ON entries (user_id, kind);
 """
 _BUSY_MARKERS = ("locked", "busy")
 _ListQuery = list[IndexEntry]
-
-
-def _require_user(user_id: str) -> None:
-    if not user_id.strip():
-        raise PermanentAdapterError("user id must not be blank")
 
 
 def _translate(exc: sqlite3.Error) -> AdapterError:
@@ -167,7 +163,7 @@ class SqliteVectorIndex:
         await self._run(lambda conn: _write_many(conn, sql, rows))
 
     async def get(self, user_id: str, entry_id: str) -> IndexEntry | None:
-        _require_user(user_id)
+        require_adapter_text(user_id, "user id")
         sql = "SELECT * FROM entries WHERE user_id = ? AND id = ?"
         rows = await self._run(lambda conn: conn.execute(sql, (user_id, entry_id)).fetchall())
         return _row_to_entry(rows[0]) if rows else None
@@ -181,7 +177,7 @@ class SqliteVectorIndex:
         filter: SearchFilter | None = None,
         embedder: EmbedderInfo,
     ) -> list[SearchHit]:
-        _require_user(user_id)
+        require_adapter_text(user_id, "user id")
         if limit < 1:
             raise PermanentAdapterError("limit must be at least 1")
         if len(vector) != embedder.dimensions:
@@ -194,17 +190,17 @@ class SqliteVectorIndex:
         return hits[:limit]
 
     async def list(self, user_id: str, filter: SearchFilter | None = None) -> _ListQuery:
-        _require_user(user_id)
+        require_adapter_text(user_id, "user id")
         return await self._select(user_id, filter, None)
 
     async def delete(self, user_id: str, ids: Sequence[str]) -> None:
-        _require_user(user_id)
+        require_adapter_text(user_id, "user id")
         rows = [(user_id, entry_id) for entry_id in ids]
         sql = "DELETE FROM entries WHERE user_id = ? AND id = ?"
         await self._run(lambda conn: _write_many(conn, sql, rows))
 
     async def delete_user(self, user_id: str) -> None:
-        _require_user(user_id)
+        require_adapter_text(user_id, "user id")
         await self._run(
             lambda conn: _write_many(conn, "DELETE FROM entries WHERE user_id = ?", [(user_id,)])
         )

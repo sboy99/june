@@ -1,24 +1,16 @@
 """Immutable memory value types: Fact, Episode, Skill."""
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import StrEnum
 
-from june.memory.domain.helper import require_text
 from june.shared import DomainError
+from june.shared.helpers import require_text, require_utc
 
 
 class EpisodeStatus(StrEnum):
     PENDING = "pending"
     CONSOLIDATED = "consolidated"
-
-
-ZERO_DURATION = timedelta(0)
-
-
-def _require_utc(value: datetime, label: str) -> None:
-    if value.tzinfo is None or value.utcoffset() != ZERO_DURATION:
-        raise DomainError(f"{label} must be a timezone-aware UTC datetime")
 
 
 def normalize_text(text: str) -> str:
@@ -41,7 +33,7 @@ class Fact:
         require_text(self.user_id, "user id")
         require_text(self.text, "fact text")
         require_text(self.source, "fact source")
-        _require_utc(self.created_at, "created_at")
+        require_utc(self.created_at, "created_at")
         if self.profile_key is not None:
             require_text(self.profile_key, "profile key")
         if self.superseded_by is not None:
@@ -73,7 +65,7 @@ class Episode:
         require_text(self.id, "episode id")
         require_text(self.user_id, "user id")
         require_text(self.summary, "episode summary")
-        _require_utc(self.created_at, "created_at")
+        require_utc(self.created_at, "created_at")
         if not isinstance(self.status, EpisodeStatus):
             raise DomainError(f"invalid episode status: {self.status!r}")
 
@@ -91,7 +83,7 @@ class Skill:
     def __post_init__(self) -> None:
         require_text(self.name, "skill name")
         require_text(self.description, "skill description")
-        _require_utc(self.created_at, "created_at")
+        require_utc(self.created_at, "created_at")
         if not isinstance(self.steps, tuple) or not self.steps:
             raise DomainError("skill steps must be a non-empty tuple")
         for step in self.steps:

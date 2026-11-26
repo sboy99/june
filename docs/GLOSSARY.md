@@ -3,7 +3,8 @@
 One definition per term. The owning module is in brackets. A new concept needs an entry in the same PR.
 
 - **Session** [conversation]: one continuous interaction between a user and the agent, identified by an id.
-- **Turn** [conversation]: one user message and the agent's complete reply.
+- **Turn** [conversation]: one user message and the agent's complete reply, stored in time order on its Session.
+- **Session store** [conversation] (`SessionStore`): the port that saves, loads, lists by user and deletes Sessions with their Turns; adapters are in-memory (tests) and SQLite.
 - **Step** [runtime]: one iteration of the agent loop inside a turn (think, then optionally act).
 - **Episode** [memory]: a stored summary of something that happened, kept for later recall.
 - **Fact** [memory]: a small, durable statement about the user or the world.
@@ -29,8 +30,20 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Adapter** [each module's `adapters/`]: a concrete implementation of a port that talks to a vendor, a database or the file system.
 - **Consolidation** [memory]: turning working memory and recent episodes into durable facts and skills.
 - **Consolidation result** [memory] (`ConsolidationResult`): counts from one consolidation run: episodes consolidated, facts stored, candidates skipped (secret or already known).
+- **Context builder** [runtime] (`ContextBuilder`): assembles the model's messages in a fixed order from already-fetched inputs: persona, user profile, recalled memories, skills index, history, new user message.
+- **Untrusted memory** [runtime]: a recalled memory wrapped in an `untrusted_memory` block so the model treats it as data, never instructions.
+- **Skills index** [runtime]: the list of all Skills (name and description) in the prompt, with the best word match for the user message loaded in full.
+- **History budget** [runtime]: the character limit on past Turns in the prompt; the oldest whole Turns are dropped first.
 - **Working memory** [runtime]: the context the loop holds for the current turn.
-- **Budget** [runtime]: limits on steps, tokens or time for a turn.
+- **Budget** [runtime]: limits for a turn: steps, optional total tokens, optional seconds, and how many identical tool calls count as a loop.
+- **Agent loop** [runtime] (`AgentLoop`): asks the Chat model, runs the tools it requests, feeds results back, and repeats until a final answer or a Budget limit.
+- **Loop stop** [runtime] (`LoopStop`): the named reason a loop run ended: `answered`, `max_steps`, `token_budget`, `time_budget`, `loop_detected`, `truncated` or `model_error`.
+- **Loop guard** [runtime]: the Budget rule that ends a run as `loop_detected` when the model requests the same tool call (name and arguments) the allowed number of times.
+- **Compaction** [runtime] (`Compactor`): replacing the oldest tool results in the working conversation with a short placeholder when it passes its size limit; call ids stay, so every tool call keeps an answer.
+- **Session closer** [runtime] (`SessionCloser`): when a Session ends, stores its transcript as a pending Episode in the background and, every N ended Sessions of a user, runs Consolidation; failures are logged, never raised to the reply path.
+- **Chat service** [runtime] (`ChatService`): starts Sessions, answers one user message (recall, context, loop, save the Turn) and ends Sessions through the Session closer.
+- **Extractive summarizer** [memory] (`ExtractiveSummarizer`): the offline default Summarizer; keeps the transcript text cut to a limit and proposes no Facts.
+- **Tool runner** [runtime] (`ToolRunner`): the runtime-owned port that lists tool specs and runs one tool call; safety Gates will wrap it.
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.
 - **Retryable** [shared]: whether the runtime may safely retry the failed operation; false unless the error says otherwise.
 - **Adapter error** [shared]: an `AdapterError` raised at an adapter boundary; transient (retryable, e.g. timeout) or permanent (not retryable, e.g. bad API key).

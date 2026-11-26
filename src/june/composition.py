@@ -3,26 +3,33 @@
 from dataclasses import dataclass
 
 from june.config import Settings
+from june.conversation import SessionStore
+from june.conversation.adapters.sqlite import SqliteSessionStore
 from june.llm import ChatModel
 from june.llm.adapters.mock import MockChatModel
 from june.llm.adapters.openai_compatible import OpenAICompatibleChatModel
 from june.memory import (
+    Consolidate,
     Embedder,
     Forget,
     Recall,
+    RememberConversation,
     RememberEpisode,
     RememberFact,
     SkillStore,
     VectorIndex,
 )
+from june.memory.adapters.extractive_summarizer import ExtractiveSummarizer
 from june.memory.adapters.file_skill_store import FileSkillStore
 from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
 from june.memory.adapters.sqlite_index import SqliteVectorIndex
+from june.runtime import AgentLoop, ChatService, Compactor, ContextBuilder, SessionCloser
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
+SESSIONS_DB_FILE = "sessions.db"
 
 
 @dataclass(frozen=True)
@@ -39,6 +46,11 @@ class App:
     remember_episode: RememberEpisode
     recall: Recall
     forget: Forget
+    session_store: SessionStore
+    context_builder: ContextBuilder
+    agent_loop: AgentLoop
+    session_closer: SessionCloser
+    chat_service: ChatService
 
 
 def load_persona(settings: Settings) -> str:
@@ -92,18 +104,47 @@ def build_app(settings: Settings) -> App:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ConfigError(f"data directory is not usable: {settings.data_dir}") from exc
+    chat_model = build_chat_model(settings)
     embedder = build_embedder(settings)
     index = SqliteVectorIndex(settings.data_dir / MEMORY_DB_FILE)
     clock, ids = SystemClock(), UuidGenerator()
+    remember_fact = RememberFact(index, embedder, clock, ids)
+    remember_episode = RememberEpisode(index, embedder, clock, ids)
+    recall = Recall(index, embedder, clock)
+    summarizer = ExtractiveSummarizer()
+    skill_store = FileSkillStore(settings.data_dir / SKILLS_DIR)
+    session_store = SqliteSessionStore(settings.data_dir / SESSIONS_DB_FILE)
+    context_builder = ContextBuilder(soul)
+    agent_loop = AgentLoop(chat_model, compactor=Compactor())
+    closer = SessionCloser(
+        RememberConversation(summarizer, remember_episode),
+        Consolidate(index, summarizer, remember_fact),
+    )
+    chat_service = ChatService(
+        sessions=session_store,
+        context_builder=context_builder,
+        agent_loop=agent_loop,
+        recall=recall,
+        index=index,
+        skills=skill_store,
+        clock=clock,
+        ids=ids,
+        closer=closer,
+    )
     return App(
         settings=settings,
         soul=soul,
-        chat_model=build_chat_model(settings),
+        chat_model=chat_model,
         embedder=embedder,
         vector_index=index,
-        skill_store=FileSkillStore(settings.data_dir / SKILLS_DIR),
-        remember_fact=RememberFact(index, embedder, clock, ids),
-        remember_episode=RememberEpisode(index, embedder, clock, ids),
-        recall=Recall(index, embedder, clock),
+        skill_store=skill_store,
+        remember_fact=remember_fact,
+        remember_episode=remember_episode,
+        recall=recall,
         forget=Forget(index),
+        session_store=session_store,
+        context_builder=context_builder,
+        agent_loop=agent_loop,
+        session_closer=closer,
+        chat_service=chat_service,
     )
