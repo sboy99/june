@@ -2,6 +2,7 @@
 
 from june.safety.adapters.secrets import memory_write_classifier
 from june.safety.decision import decide, enforce
+from june.safety.end_loop_gate import EndLoopGate
 from june.safety.input_gate import InputGate
 from june.safety.memory_write_gate import MemoryWriteGate
 from june.safety.policy import GATE_POLICIES, GatePolicy, policy_for
@@ -21,6 +22,7 @@ __all__ = [
     "Approver",
     "Classifier",
     "Decision",
+    "EndLoopGate",
     "GateName",
     "GatePolicy",
     "InputGate",

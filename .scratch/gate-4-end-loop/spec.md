@@ -27,7 +27,7 @@ The final answer of the agent loop goes to the user as the model wrote it. It ca
 
 ## Implementation Decisions
 
-- `LengthClassifier(max_chars)` adapter: empty is `deny`/`low`, too long is `deny`/`medium`, else `allow`/`low`.
+- `LengthClassifier(max_chars)` adapter: empty is `deny`/`low`, longer than the limit is `deny`/`medium`, longer than half the limit is `allow`/`medium` (so a Judge reviews it), else `allow`/`low`.
 - `EndLoopGate(max_chars=8000, judge=None, classifier=None)`: `async check(reply) -> str` redacts with the same patterns as log redaction, runs the shared decision step, returns the redacted reply or raises `SafetyDenied`.
 - Not wired yet (SHIP-337).
 
