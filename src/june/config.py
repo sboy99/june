@@ -25,6 +25,32 @@ class Settings(BaseSettings):
     llm_base_url: str | None = None
     llm_timeout_seconds: float = Field(default=30.0, gt=0, le=600)
     llm_max_retries: int = Field(default=2, ge=0, le=10)
+    embedder_provider: Literal["hashing", "openai"] = "hashing"
+    embedder_model: str = "text-embedding-3-small"
+    embedder_dimensions: int = Field(default=256, ge=1, le=8192)
+    embedder_api_key: SecretStr | None = None
+    embedder_base_url: str | None = None
+
+    @property
+    def effective_embedder_api_key(self) -> SecretStr | None:
+        """The embedder key, falling back to the LLM key."""
+        return self.embedder_api_key or self.llm_api_key
+
+    @property
+    def effective_embedder_base_url(self) -> str | None:
+        """The embedder base URL, falling back to the LLM base URL."""
+        return self.embedder_base_url or self.llm_base_url
+
+    @model_validator(mode="after")
+    def _require_credentials_for_real_embedder(self) -> Self:
+        if self.embedder_provider == "hashing":
+            return self
+        key = self.effective_embedder_api_key
+        if key is None or not key.get_secret_value().strip():
+            raise ValueError("JUNE_EMBEDDER_API_KEY is required when embedder_provider=openai")
+        if not self.embedder_model.strip():
+            raise ValueError("JUNE_EMBEDDER_MODEL is required when embedder_provider=openai")
+        return self
 
     @model_validator(mode="after")
     def _require_credentials_for_real_provider(self) -> Self:
