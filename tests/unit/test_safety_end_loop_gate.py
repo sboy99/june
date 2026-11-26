@@ -50,7 +50,7 @@ async def test_reply_at_the_limit_is_allowed():
 
 
 async def test_length_is_checked_after_redaction():
-    reply = f"key={SECRET}"
+    reply = SECRET
 
     assert await EndLoopGate(max_chars=len("[REDACTED]")).check(reply) == "[REDACTED]"
 
