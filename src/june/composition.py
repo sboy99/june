@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 
 from june.config import Settings
+from june.conversation import SessionStore
+from june.conversation.adapters.sqlite import SqliteSessionStore
 from june.llm import ChatModel
 from june.llm.adapters.mock import MockChatModel
 from june.llm.adapters.openai_compatible import OpenAICompatibleChatModel
@@ -23,6 +25,7 @@ from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
+SESSIONS_DB_FILE = "sessions.db"
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,7 @@ class App:
     remember_episode: RememberEpisode
     recall: Recall
     forget: Forget
+    session_store: SessionStore
 
 
 def load_persona(settings: Settings) -> str:
@@ -106,4 +110,5 @@ def build_app(settings: Settings) -> App:
         remember_episode=RememberEpisode(index, embedder, clock, ids),
         recall=Recall(index, embedder, clock),
         forget=Forget(index),
+        session_store=SqliteSessionStore(settings.data_dir / SESSIONS_DB_FILE),
     )

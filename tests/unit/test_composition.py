@@ -110,3 +110,11 @@ def test_unusable_data_dir_is_a_config_error(persona, tmp_path):
 
     with pytest.raises(ConfigError):
         build_app(Settings(persona_path=persona, data_dir=blocker / "data"))
+
+
+def test_app_exposes_a_sqlite_session_store(persona, tmp_path):
+    from june.conversation.adapters.sqlite import SqliteSessionStore
+
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    assert isinstance(app.session_store, SqliteSessionStore)

@@ -3,7 +3,8 @@
 One definition per term. The owning module is in brackets. A new concept needs an entry in the same PR.
 
 - **Session** [conversation]: one continuous interaction between a user and the agent, identified by an id.
-- **Turn** [conversation]: one user message and the agent's complete reply.
+- **Turn** [conversation]: one user message and the agent's complete reply, stored in time order on its Session.
+- **Session store** [conversation] (`SessionStore`): the port that saves, loads, lists by user and deletes Sessions with their Turns; adapters are in-memory (tests) and SQLite.
 - **Step** [runtime]: one iteration of the agent loop inside a turn (think, then optionally act).
 - **Episode** [memory]: a stored summary of something that happened, kept for later recall.
 - **Fact** [memory]: a small, durable statement about the user or the world.
