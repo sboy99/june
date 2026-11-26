@@ -38,6 +38,7 @@ class LoopStop(StrEnum):
     LOOP_DETECTED = "loop_detected"
     TRUNCATED = "truncated"
     MODEL_ERROR = "model_error"
+    SAFETY_DENIED = "safety_denied"
 
 
 @dataclass(frozen=True, slots=True)

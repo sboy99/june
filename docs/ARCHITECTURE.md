@@ -38,6 +38,8 @@ What each safety Gate checks, which Decisions it may return, and what happens wh
 | `memory_write` | text about to be remembered | `allow`, `deny` | `deny` |
 | `end_loop` | final assistant answer | `allow`, `deny` | `allow` |
 
+Gates are wired in `composition.py`: the Input and End-loop gates guard `ChatService`, the Memory-write gate guards memory writes and the Skill store, and `App.tool_gate` is ready to wrap the Phase 5 tool runner with `GatedToolRunner`. A blocked turn ends as `safety_denied`.
+
 Every decision logs `gate`, `decision`, `risk`, `reason` and `subject_digest` (a Content digest, never the raw text). `ask` is treated as `deny` until a confirmation flow exists.
 
 ## One request, end to end

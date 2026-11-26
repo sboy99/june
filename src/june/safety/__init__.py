@@ -1,5 +1,6 @@
 """Safety: classifies risk and gates actions."""
 
+from june.safety.adapters.patterns import injection_classifier
 from june.safety.adapters.secrets import memory_write_classifier
 from june.safety.decision import decide, enforce
 from june.safety.end_loop_gate import EndLoopGate
@@ -34,6 +35,7 @@ __all__ = [
     "ToolGate",
     "Verdict",
     "decide",
+    "injection_classifier",
     "enforce",
     "memory_write_classifier",
     "policy_for",

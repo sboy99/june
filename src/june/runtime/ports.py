@@ -28,3 +28,9 @@ class ToolGuard(Protocol):
     """Port: decides whether one tool call may run; raises `SafetyDenied` if not."""
 
     async def check(self, name: str, arguments: Mapping[str, Any]) -> None: ...
+
+
+class TextGuard(Protocol):
+    """Port: checks a text and returns it, possibly redacted; raises `SafetyDenied` to block."""
+
+    async def check(self, text: str) -> str: ...
