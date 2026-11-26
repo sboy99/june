@@ -1,7 +1,9 @@
 """Safety: classifies risk and gates actions."""
 
+from june.safety.adapters.secrets import memory_write_classifier
 from june.safety.decision import decide, enforce
 from june.safety.input_gate import InputGate
+from june.safety.memory_write_gate import MemoryWriteGate
 from june.safety.policy import GATE_POLICIES, GatePolicy, policy_for
 from june.safety.ports import (
     Approver,
@@ -24,9 +26,11 @@ __all__ = [
     "InputGate",
     "Judge",
     "RiskLevel",
+    "MemoryWriteGate",
     "ToolGate",
     "Verdict",
     "decide",
     "enforce",
+    "memory_write_classifier",
     "policy_for",
 ]

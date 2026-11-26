@@ -61,6 +61,8 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Tool gate** [safety] (`ToolGate`): Gate 2; rates each tool call by Risk level (unknown tools are `high`), runs `low` and `medium` calls, and asks the Approver for `high` ones.
 - **Approver** [safety]: the port that answers whether a high-risk tool call may run; none configured means deny.
 - **Tool guard** [runtime] (`ToolGuard`): the runtime-owned port that decides whether one tool call may run; `GatedToolRunner` asks it before delegating to the real `ToolRunner`.
+- **Memory-write gate** [safety] (`MemoryWriteGate`): Gate 3; denies secrets, planted standing instructions and injection phrases before text is stored as a Fact, Episode or Skill.
+- **Write guard** [memory] (`WriteGuard`): the memory-owned port that decides whether a text may be stored; `RememberFact`, `RememberEpisode` and `GuardedSkillStore` ask it first, and Consolidation skips a denied candidate.
 - **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
 - **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
 - **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.

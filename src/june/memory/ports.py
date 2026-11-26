@@ -245,3 +245,9 @@ class Summarizer(Protocol):
     async def summarize(self, turns: Sequence[TranscriptTurn]) -> str: ...
 
     async def distill(self, episodes: Sequence[Episode]) -> list[FactCandidate]: ...
+
+
+class WriteGuard(Protocol):
+    """Port: decides whether a text may be stored; raises `SafetyDenied` if not."""
+
+    async def check(self, text: str) -> None: ...
