@@ -36,9 +36,9 @@ Two small async use cases in `june.memory.application`, built only on ports, dom
 
 - New module `memory/application/consolidate.py` with `ConsolidationResult`, `RememberConversation`, `Consolidate`. Plain classes, constructor injection, one `execute` method each, all `async`.
 - `RememberConversation(summarizer, remember_episode)`. `execute(user_id, turns) -> Episode`: validate, `summarizer.summarize(turns)`, then `RememberEpisode.execute`.
-- `Consolidate(index, summarizer, remember_fact, clock=None)`: no clock needed; takes `index`, `summarizer`, `remember_fact`. Steps under the user's lock: list entries with `SearchFilter(kind="episode", episode_status=PENDING)`; if none, return the empty result; `distill`; drop secret candidates; `remember_fact.execute(user_id, text, "consolidation", profile_key)` for each; upsert the episode entries with `mark_consolidated()`.
+- `Consolidate(index, summarizer, remember_fact)`. Steps under the user's lock: list entries with `SearchFilter(kind="episode", episode_status=PENDING)`; if none, return the empty result; `distill`; drop secret candidates; `remember_fact.execute(user_id, text, "consolidation", profile_key)` for each; upsert the episode entries with `mark_consolidated()`.
 - Secret test: a candidate is secret when `redact_text(text) != text`. One source of truth for patterns, no duplicate regex. Allowed by the layer contract (`observability` sits below `memory`).
-- Skipped duplicates are detected by comparing the id returned by `RememberFact` with ids already present before the call is not possible cheaply, so a fact counts as stored when the returned `Fact.created_at` equals the run's id set: simpler rule: count a fact as stored when the returned fact id was not in the user's active facts before the run (one `list` call up front).
+- Counting: list the user's active facts once before storing; a fact counts as stored when the id returned by `RememberFact` was not among them and is new within the run, otherwise it counts as skipped (duplicate).
 - Lock: `dict[str, asyncio.Lock]` keyed by user id, held on the instance. In-process only; documented as such. Multi-process locking is out of scope.
 - No ADR: follows ADR 0002 and 0004. Glossary: add Consolidation result.
 

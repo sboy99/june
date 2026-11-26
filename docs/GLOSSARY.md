@@ -28,6 +28,7 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Port** [each module's `ports.py`]: a `typing.Protocol` describing what a module needs from the outside.
 - **Adapter** [each module's `adapters/`]: a concrete implementation of a port that talks to a vendor, a database or the file system.
 - **Consolidation** [memory]: turning working memory and recent episodes into durable facts and skills.
+- **Consolidation result** [memory] (`ConsolidationResult`): counts from one consolidation run: episodes consolidated, facts stored, candidates skipped (secret or already known).
 - **Working memory** [runtime]: the context the loop holds for the current turn.
 - **Budget** [runtime]: limits on steps, tokens or time for a turn.
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.
