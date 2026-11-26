@@ -30,6 +30,10 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Adapter** [each module's `adapters/`]: a concrete implementation of a port that talks to a vendor, a database or the file system.
 - **Consolidation** [memory]: turning working memory and recent episodes into durable facts and skills.
 - **Consolidation result** [memory] (`ConsolidationResult`): counts from one consolidation run: episodes consolidated, facts stored, candidates skipped (secret or already known).
+- **Context builder** [runtime] (`ContextBuilder`): assembles the model's messages in a fixed order from already-fetched inputs: persona, user profile, recalled memories, skills index, history, new user message.
+- **Untrusted memory** [runtime]: a recalled memory wrapped in an `untrusted_memory` block so the model treats it as data, never instructions.
+- **Skills index** [runtime]: the list of all Skills (name and description) in the prompt, with the best word match for the user message loaded in full.
+- **History budget** [runtime]: the character limit on past Turns in the prompt; the oldest whole Turns are dropped first.
 - **Working memory** [runtime]: the context the loop holds for the current turn.
 - **Budget** [runtime]: limits on steps, tokens or time for a turn.
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.

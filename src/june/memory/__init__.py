@@ -10,6 +10,7 @@ from june.memory.application import (
     RememberEpisode,
     RememberFact,
 )
+from june.memory.domain import Episode, Fact, Skill
 from june.memory.ports import (
     Embedder,
     EmbedderInfo,
@@ -26,6 +27,9 @@ from june.memory.ports import (
 )
 
 __all__ = [
+    "Episode",
+    "Fact",
+    "Skill",
     "Consolidate",
     "ConsolidationResult",
     "Forget",

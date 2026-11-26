@@ -118,3 +118,11 @@ def test_app_exposes_a_sqlite_session_store(persona, tmp_path):
     app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
 
     assert isinstance(app.session_store, SqliteSessionStore)
+
+
+def test_app_exposes_a_context_builder_holding_the_persona(persona, tmp_path):
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    messages = app.context_builder.build("hello")
+
+    assert messages[0].content == "be kind"
