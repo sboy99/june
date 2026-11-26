@@ -4,6 +4,7 @@ from june.safety.decision import decide, enforce
 from june.safety.input_gate import InputGate
 from june.safety.policy import GATE_POLICIES, GatePolicy, policy_for
 from june.safety.ports import (
+    Approver,
     Classifier,
     Decision,
     GateName,
@@ -11,9 +12,11 @@ from june.safety.ports import (
     RiskLevel,
     Verdict,
 )
+from june.safety.tool_gate import ToolGate
 
 __all__ = [
     "GATE_POLICIES",
+    "Approver",
     "Classifier",
     "Decision",
     "GateName",
@@ -21,6 +24,7 @@ __all__ = [
     "InputGate",
     "Judge",
     "RiskLevel",
+    "ToolGate",
     "Verdict",
     "decide",
     "enforce",

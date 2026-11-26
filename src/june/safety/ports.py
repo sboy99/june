@@ -4,8 +4,9 @@ All types are immutable. The ports take plain strings so `safety` stays
 independent of its sibling modules (`llm`, `memory`, `runtime`).
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, Protocol, get_args
+from typing import Any, Literal, Protocol, get_args
 
 from june.shared.errors import DomainError
 
@@ -41,3 +42,9 @@ class Judge(Protocol):
     """Port: model-backed check; the composition root supplies the model."""
 
     async def judge(self, subject: str, question: str) -> Verdict: ...
+
+
+class Approver(Protocol):
+    """Port: asks a person (or policy) whether a high-risk tool call may run."""
+
+    async def approve(self, tool: str, arguments: Mapping[str, Any]) -> bool: ...

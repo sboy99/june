@@ -1,7 +1,7 @@
 """Ports (interfaces) of the runtime module."""
 
-from collections.abc import Sequence
-from typing import Protocol
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from june.llm import ToolCall, ToolResult, ToolSpec
 
@@ -22,3 +22,9 @@ class ToolRunner(Protocol):
     def specs(self) -> Sequence[ToolSpec]: ...
 
     async def run(self, call: ToolCall) -> ToolResult: ...
+
+
+class ToolGuard(Protocol):
+    """Port: decides whether one tool call may run; raises `SafetyDenied` if not."""
+
+    async def check(self, name: str, arguments: Mapping[str, Any]) -> None: ...
