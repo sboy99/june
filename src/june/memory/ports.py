@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from typing import Literal, Protocol, get_args
 
 from june.memory.domain import Episode, EpisodeStatus, Fact, Skill
-from june.memory.domain.helper import require_text
 from june.shared import DomainError
+from june.shared.helpers import require_text
 
 Vector = tuple[float, ...]
 SCORE_TOLERANCE = 1e-6

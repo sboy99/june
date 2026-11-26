@@ -1,22 +1,11 @@
 """Session and Turn: the immutable values of a conversation."""
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Self
 
 from june.shared import DomainError
-
-_ZERO = timedelta(0)
-
-
-def _require_text(value: str, label: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise DomainError(f"{label} must not be blank")
-
-
-def _require_utc(value: datetime, label: str) -> None:
-    if value.tzinfo is None or value.utcoffset() != _ZERO:
-        raise DomainError(f"{label} must be a timezone-aware UTC datetime")
+from june.shared.helpers import require_text, require_utc
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,9 +17,9 @@ class Turn:
     created_at: datetime
 
     def __post_init__(self) -> None:
-        _require_text(self.user_message, "user message")
-        _require_text(self.reply, "reply")
-        _require_utc(self.created_at, "created_at")
+        require_text(self.user_message, "user message")
+        require_text(self.reply, "reply")
+        require_utc(self.created_at, "created_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,9 +32,9 @@ class Session:
     turns: tuple[Turn, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_text(self.id, "session id")
-        _require_text(self.user_id, "user id")
-        _require_utc(self.created_at, "created_at")
+        require_text(self.id, "session id")
+        require_text(self.user_id, "user id")
+        require_utc(self.created_at, "created_at")
         if not isinstance(self.turns, tuple) or not all(isinstance(t, Turn) for t in self.turns):
             raise DomainError("session turns must be a tuple of Turn")
 

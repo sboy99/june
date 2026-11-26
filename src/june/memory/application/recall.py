@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from june.memory.domain import DEFAULT_HALF_LIFE, Episode, Fact, recency_decay
-from june.memory.domain.helper import require_text
 from june.memory.ports import Embedder, EntryKind, SearchFilter, VectorIndex
 from june.shared import Clock, DomainError
+from june.shared.helpers import require_text
 
 DEFAULT_RECALL_LIMIT = 5
 DEFAULT_CANDIDATE_MULTIPLIER = 4

@@ -1,6 +1,6 @@
 # ADR 0008: Shared domain helpers live in `helper.py`
 
-- Status: accepted
+- Status: superseded by [ADR 0010](0010-shared-validation-helpers.md)
 
 ## Context
 `require_text` started as a private function in `memory/domain/types.py`. `memory/ports.py` needed the same check, which pushed us to either copy it or make a private name public from an unrelated module. Both spread helpers across files with no predictable home.

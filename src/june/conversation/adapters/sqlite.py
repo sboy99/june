@@ -9,6 +9,7 @@ from pathlib import Path
 
 from june.conversation.session import Session, Turn
 from june.shared import AdapterError, DomainError, PermanentAdapterError, TransientAdapterError
+from june.shared.helpers import require_adapter_text
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -27,11 +28,6 @@ CREATE TABLE IF NOT EXISTS turns (
 );
 """
 _BUSY_MARKERS = ("locked", "busy")
-
-
-def _require_id(value: str, label: str) -> None:
-    if not value.strip():
-        raise PermanentAdapterError(f"{label} must not be blank")
 
 
 def _translate(exc: sqlite3.Error) -> AdapterError:
@@ -98,7 +94,7 @@ class SqliteSessionStore:
         await self._run(lambda conn: _write(conn, session))
 
     async def get(self, session_id: str) -> Session | None:
-        _require_id(session_id, "session id")
+        require_adapter_text(session_id, "session id")
 
         def read(conn: sqlite3.Connection) -> Session | None:
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
@@ -107,7 +103,7 @@ class SqliteSessionStore:
         return await self._run(read)
 
     async def list_for_user(self, user_id: str) -> list[Session]:
-        _require_id(user_id, "user id")
+        require_adapter_text(user_id, "user id")
 
         def read(conn: sqlite3.Connection) -> list[Session]:
             rows = conn.execute(
@@ -118,7 +114,7 @@ class SqliteSessionStore:
         return await self._run(read)
 
     async def delete(self, session_id: str) -> None:
-        _require_id(session_id, "session id")
+        require_adapter_text(session_id, "session id")
         await self._run(
             lambda conn: conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
         )

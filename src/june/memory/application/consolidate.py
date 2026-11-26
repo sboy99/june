@@ -6,10 +6,10 @@ from dataclasses import dataclass, replace
 
 from june.memory.application.remember import RememberEpisode, RememberFact
 from june.memory.domain import Episode, EpisodeStatus, Fact
-from june.memory.domain.helper import require_text
 from june.memory.ports import IndexEntry, SearchFilter, Summarizer, TranscriptTurn, VectorIndex
 from june.observability.redaction import redact_text
 from june.shared import DomainError
+from june.shared.helpers import require_text
 
 CONSOLIDATION_SOURCE = "consolidation"
 _PENDING_EPISODES = SearchFilter(kind="episode", episode_status=EpisodeStatus.PENDING)

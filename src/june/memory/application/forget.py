@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 
-from june.memory.domain.helper import require_text
 from june.memory.ports import VectorIndex
+from june.shared.helpers import require_text
 
 
 class Forget:

@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from june.memory.domain.types import (
-    ZERO_DURATION,
     Episode,
     EpisodeStatus,
     Fact,
     normalize_text,
 )
 from june.shared import DomainError
+from june.shared.helpers import ZERO_DURATION
 
 DEFAULT_HALF_LIFE = timedelta(days=30)
 DEFAULT_EPISODE_RETENTION = timedelta(days=180)
