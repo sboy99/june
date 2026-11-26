@@ -50,6 +50,11 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Clock** [shared]: the source of the current time; a `Clock` port with a real `SystemClock` and a test `FixedClock`, always returning timezone-aware UTC.
 - **Id generator** [shared]: the source of new opaque ids (32 lowercase hex characters); an `IdGenerator` port with a `UuidGenerator` default, which tests replace with a fake.
 - **Risk level** [safety]: the classified danger of an action, which decides which gates apply.
+- **Decision** [safety]: what a check returns: `allow`, `deny` or `ask` (get explicit user confirmation; treated as `deny` until that flow exists).
+- **Verdict** [safety] (`Verdict`): an immutable Decision with its Risk level and a non-empty reason.
+- **Classifier** [safety]: the port for a cheap, synchronous, rule-based check of a text that returns a Verdict.
+- **Judge** [safety]: the port for an async, model-backed check that returns a Verdict; the composition root supplies the model.
+- **Gate policy** [safety] (`GatePolicy`): one row of the table saying what a Gate checks, which Decisions it may return, what it does when its checker fails, and which fields it logs.
 - **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
 - **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
 - **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.

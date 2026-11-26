@@ -27,6 +27,19 @@ Higher layers import lower ones, never the reverse. Layers, top to bottom: inter
 
 Same-level modules cannot call each other, so a cross-module need becomes a port that the composition root fills. Known cases: memory consolidation needs a model (`memory.ports.Summarizer`, filled by an llm adapter); safety judges need a model (`safety.ports.Judge`); sub-agent delegation needs the loop (`tooling.ports.SubAgentRunner`, filled by runtime).
 
+## Gate policy
+
+What each safety Gate checks, which Decisions it may return, and what happens when its checker fails (see [ADR 0011](adr/0011-gates-fail-closed.md)). The table is mirrored in code by `june.safety.GATE_POLICIES`.
+
+| Gate | Checks | Decisions | On checker error |
+|------|--------|-----------|------------------|
+| `input` | user message text | `allow`, `deny` | `deny` |
+| `tool` | tool call name and arguments | `allow`, `deny`, `ask` | `deny` |
+| `memory_write` | text about to be remembered | `allow`, `deny` | `deny` |
+| `end_loop` | final assistant answer | `allow`, `deny` | `allow` |
+
+Every decision logs `gate`, `decision`, `risk`, `reason` and `subject_digest` (a Content digest, never the raw text). `ask` is treated as `deny` until a confirmation flow exists.
+
 ## One request, end to end
 1. `june` (CLI) builds `Settings` from `JUNE_*` environment variables.
 2. `build_app(settings)` reads the persona file and returns an `App`; a missing or empty file stops startup with a one-line error.
