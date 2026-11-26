@@ -126,3 +126,11 @@ def test_app_exposes_a_context_builder_holding_the_persona(persona, tmp_path):
     messages = app.context_builder.build("hello")
 
     assert messages[0].content == "be kind"
+
+
+async def test_app_exposes_an_agent_loop_over_the_chat_model(persona, tmp_path):
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
+
+    result = await app.agent_loop.run(app.context_builder.build("hello"))
+
+    assert result.reply == "echo: hello"

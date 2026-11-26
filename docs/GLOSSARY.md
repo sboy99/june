@@ -35,7 +35,10 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Skills index** [runtime]: the list of all Skills (name and description) in the prompt, with the best word match for the user message loaded in full.
 - **History budget** [runtime]: the character limit on past Turns in the prompt; the oldest whole Turns are dropped first.
 - **Working memory** [runtime]: the context the loop holds for the current turn.
-- **Budget** [runtime]: limits on steps, tokens or time for a turn.
+- **Budget** [runtime]: limits on steps, tokens or time for a turn; today a step limit and an optional total-token limit.
+- **Agent loop** [runtime] (`AgentLoop`): asks the Chat model, runs the tools it requests, feeds results back, and repeats until a final answer or a Budget limit.
+- **Loop stop** [runtime] (`LoopStop`): the named reason a loop run ended: `answered`, `max_steps`, `token_budget`, `truncated` or `model_error`.
+- **Tool runner** [runtime] (`ToolRunner`): the runtime-owned port that lists tool specs and runs one tool call; safety Gates will wrap it.
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.
 - **Retryable** [shared]: whether the runtime may safely retry the failed operation; false unless the error says otherwise.
 - **Adapter error** [shared]: an `AdapterError` raised at an adapter boundary; transient (retryable, e.g. timeout) or permanent (not retryable, e.g. bad API key).

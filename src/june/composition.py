@@ -21,7 +21,7 @@ from june.memory.adapters.file_skill_store import FileSkillStore
 from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
 from june.memory.adapters.sqlite_index import SqliteVectorIndex
-from june.runtime import ContextBuilder
+from june.runtime import AgentLoop, ContextBuilder
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 
 MEMORY_DB_FILE = "memory.db"
@@ -45,6 +45,7 @@ class App:
     forget: Forget
     session_store: SessionStore
     context_builder: ContextBuilder
+    agent_loop: AgentLoop
 
 
 def load_persona(settings: Settings) -> str:
@@ -98,13 +99,14 @@ def build_app(settings: Settings) -> App:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ConfigError(f"data directory is not usable: {settings.data_dir}") from exc
+    chat_model = build_chat_model(settings)
     embedder = build_embedder(settings)
     index = SqliteVectorIndex(settings.data_dir / MEMORY_DB_FILE)
     clock, ids = SystemClock(), UuidGenerator()
     return App(
         settings=settings,
         soul=soul,
-        chat_model=build_chat_model(settings),
+        chat_model=chat_model,
         embedder=embedder,
         vector_index=index,
         skill_store=FileSkillStore(settings.data_dir / SKILLS_DIR),
@@ -114,4 +116,5 @@ def build_app(settings: Settings) -> App:
         forget=Forget(index),
         session_store=SqliteSessionStore(settings.data_dir / SESSIONS_DB_FILE),
         context_builder=ContextBuilder(soul),
+        agent_loop=AgentLoop(chat_model),
     )
