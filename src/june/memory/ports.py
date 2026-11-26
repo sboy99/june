@@ -9,17 +9,14 @@ never contains secrets or API keys.
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal, Protocol, get_args
 
 from june.memory.domain import Episode, EpisodeStatus, Fact, Skill
+from june.memory.domain.types import require_text
 from june.shared import DomainError
 
 Vector = tuple[float, ...]
-
-
-def _require_text(value: str, label: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise DomainError(f"{label} must not be blank")
+SCORE_TOLERANCE = 1e-6
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,8 +28,8 @@ class EmbedderInfo:
     dimensions: int
 
     def __post_init__(self) -> None:
-        _require_text(self.name, "embedder name")
-        _require_text(self.version, "embedder version")
+        require_text(self.name, "embedder name")
+        require_text(self.version, "embedder version")
         if self.dimensions < 1:
             raise DomainError("embedder dimensions must be positive")
 
@@ -50,7 +47,8 @@ class Embedder(Protocol):
     - Blank text is allowed (callers filter).
     - Retry transient failures internally, up to the configured retry count,
       then raise `TransientAdapterError`; permanent failures raise
-      `PermanentAdapterError`.
+      `PermanentAdapterError` (both from `june.shared`). Nothing else escapes,
+      and error text never contains secrets or API keys.
     """
 
     @property
@@ -60,7 +58,7 @@ class Embedder(Protocol):
 
 
 EntryKind = Literal["fact", "episode"]
-_ENTRY_KINDS = ("fact", "episode")
+TranscriptRole = Literal["user", "assistant"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,9 +96,9 @@ class IndexEntry:
 class SearchFilter:
     """Narrow a search or listing. Defaults match everything.
 
-    `active_only` excludes superseded facts (episodes are unaffected);
-    `episode_status` excludes episodes with another status (facts are unaffected
-    unless `kind` is also set).
+    `kind` keeps one kind of entry. `active_only` drops superseded facts.
+    `episode_status` drops episodes with another status. The last two apply
+    only to their own kind; entries of the other kind are kept.
     """
 
     kind: EntryKind | None = None
@@ -108,20 +106,25 @@ class SearchFilter:
     episode_status: EpisodeStatus | None = None
 
     def __post_init__(self) -> None:
-        if self.kind is not None and self.kind not in _ENTRY_KINDS:
+        if self.episode_status is not None and not isinstance(self.episode_status, EpisodeStatus):
+            raise DomainError(f"invalid episode status: {self.episode_status!r}")
+        if self.kind is not None and self.kind not in get_args(EntryKind):
             raise DomainError(f"invalid entry kind: {self.kind!r}")
 
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
-    """One search result; `score` is cosine similarity in [-1, 1], higher is closer."""
+    """One search result; `score` is cosine similarity in [-1, 1], higher is closer.
+
+    Float rounding up to `SCORE_TOLERANCE` outside the range is accepted.
+    """
 
     entry: IndexEntry
     score: float
 
     def __post_init__(self) -> None:
-        if not -1.0 <= self.score <= 1.0:
-            raise DomainError("score must be within [-1, 1]")
+        if not -1.0 - SCORE_TOLERANCE <= self.score <= 1.0 + SCORE_TOLERANCE:
+            raise DomainError("score must be within [-1, 1] (allowing float rounding)")
 
 
 class VectorIndex(Protocol):
@@ -137,12 +140,16 @@ class VectorIndex(Protocol):
     - `get` returns None for a missing entry.
     - `search` considers only entries whose embedder identity equals
       `embedder`, raises `PermanentAdapterError` when `len(vector)` differs
-      from `embedder.dimensions`, or when `limit < 1` or `user_id` is blank.
+      from `embedder.dimensions`.
       Hits are best first (ties broken by id) and at most `limit` long.
     - `list` returns matching entries ordered by creation time, then id.
     - `delete` and `delete_user` are idempotent: missing ids are not errors.
     - `count_stale` counts entries across all users whose embedder identity
       differs from `embedder`, so a model change is detectable.
+    - A blank `user_id` or a `limit < 1` raises `PermanentAdapterError` on
+      every method that takes one.
+    - Only `TransientAdapterError` and `PermanentAdapterError` (from
+      `june.shared`) escape; error text never contains secrets or API keys.
     - Blocking vendor calls must not block the event loop.
     """
 
@@ -179,7 +186,10 @@ class SkillStore(Protocol):
       an error.
     - `list` returns skills ordered by name.
     - A name that could escape the store (path separator, `..`, absolute
-      path, NUL) raises `PermanentAdapterError` on every method.
+      path, NUL) raises `PermanentAdapterError` on every method, `save`
+      included.
+    - Only `TransientAdapterError` and `PermanentAdapterError` (from
+      `june.shared`) escape; error text never contains secrets or API keys.
     """
 
     async def save(self, skill: Skill) -> None: ...
@@ -195,13 +205,13 @@ class SkillStore(Protocol):
 class TranscriptTurn:
     """One conversation turn to summarize. Tool activity is not representable."""
 
-    role: Literal["user", "assistant"]
+    role: TranscriptRole
     content: str
 
     def __post_init__(self) -> None:
-        if self.role not in ("user", "assistant"):
+        if self.role not in get_args(TranscriptRole):
             raise DomainError(f"invalid transcript role: {self.role!r}")
-        _require_text(self.content, "transcript content")
+        require_text(self.content, "transcript content")
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,9 +222,9 @@ class FactCandidate:
     profile_key: str | None = None
 
     def __post_init__(self) -> None:
-        _require_text(self.text, "fact candidate text")
+        require_text(self.text, "fact candidate text")
         if self.profile_key is not None:
-            _require_text(self.profile_key, "profile key")
+            require_text(self.profile_key, "profile key")
 
 
 class Summarizer(Protocol):
@@ -227,7 +237,9 @@ class Summarizer(Protocol):
     - `distill` returns an empty list for an empty sequence without calling
       the vendor; every candidate has non-blank text.
     - It neither stores nor deduplicates; domain rules and use cases do.
-    - Error text never contains transcript content.
+    - Only `TransientAdapterError` and `PermanentAdapterError` (from
+      `june.shared`) escape; error text never contains transcript content,
+      secrets or API keys.
     """
 
     async def summarize(self, turns: Sequence[TranscriptTurn]) -> str: ...

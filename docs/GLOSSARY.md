@@ -15,9 +15,11 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Retention** [memory]: the rules for when old memory may be forgotten: consolidated Episodes after a retention period, superseded Facts after a grace period; pending Episodes and active Facts never expire.
 - **Retention policy** [memory]: the two non-negative durations (episode retention, superseded grace) that Retention rules apply.
 - **Episode status** [memory]: `pending` (not yet consolidated; never expires) or `consolidated` (turned into durable memory; expires after the retention period).
-- **Embedder identity** [memory]: the name, version and dimension count of an embedder; stored with every vector so a model change is detectable.
+- **Embedder identity** [memory] (`EmbedderInfo`): the name, version and dimension count of an embedder; stored with every vector so a model change is detectable.
 - **Index entry** [memory]: a Fact or Episode stored in the vector index together with its vector and Embedder identity.
-- **Search hit** [memory]: an Index entry returned by a search with its cosine similarity score, best first.
+- **Vector** [memory]: an immutable tuple of finite floats an Embedder produces for a text.
+- **Search filter** [memory]: optional narrowing of a vector index search or listing by kind (`fact` or `episode`), active facts only, or episode status.
+- **Search hit** [memory] (`SearchHit`): an Index entry returned by a search with its cosine similarity score, best first.
 - **Fact candidate** [memory]: a fact (text and optional Profile key) proposed by the summarizer; supersede and dedupe rules decide what becomes a Fact.
 - **Transcript turn** [memory]: one user or assistant message handed to the summarizer; tool activity is not representable.
 - **Persona** [persona/SOUL.md]: the agent's identity, tone and values, loaded at startup and read-only to the agent.

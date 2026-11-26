@@ -127,10 +127,16 @@ def test_search_filter_rejects_unknown_kind():
         SearchFilter(kind="skill")  # type: ignore[arg-type]
 
 
+def test_search_filter_rejects_unknown_episode_status():
+    with pytest.raises(DomainError):
+        SearchFilter(episode_status="done")  # type: ignore[arg-type]
+
+
 def test_search_hit_rejects_score_outside_cosine_range():
     entry = IndexEntry(item=make_fact(), vector=(1.0, 0.0), embedder=INFO)
 
     assert SearchHit(entry=entry, score=-1.0).score == -1.0
+    assert SearchHit(entry=entry, score=1.0000000002).score > 1.0
     with pytest.raises(DomainError):
         SearchHit(entry=entry, score=1.5)
 

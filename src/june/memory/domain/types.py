@@ -12,7 +12,7 @@ class EpisodeStatus(StrEnum):
     CONSOLIDATED = "consolidated"
 
 
-def _require_text(value: str, label: str) -> None:
+def require_text(value: str, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise DomainError(f"{label} must not be blank")
 
@@ -41,18 +41,18 @@ class Fact:
     superseded_by: str | None = None
 
     def __post_init__(self) -> None:
-        _require_text(self.id, "fact id")
-        _require_text(self.user_id, "user id")
-        _require_text(self.text, "fact text")
-        _require_text(self.source, "fact source")
+        require_text(self.id, "fact id")
+        require_text(self.user_id, "user id")
+        require_text(self.text, "fact text")
+        require_text(self.source, "fact source")
         _require_utc(self.created_at, "created_at")
         if self.profile_key is not None:
-            _require_text(self.profile_key, "profile key")
+            require_text(self.profile_key, "profile key")
         if self.superseded_by is not None:
             self._check_superseded_by(self.superseded_by)
 
     def _check_superseded_by(self, by_fact_id: str) -> None:
-        _require_text(by_fact_id, "superseded_by")
+        require_text(by_fact_id, "superseded_by")
         if by_fact_id == self.id:
             raise DomainError("a fact cannot supersede itself")
 
@@ -74,9 +74,9 @@ class Episode:
     status: EpisodeStatus = EpisodeStatus.PENDING
 
     def __post_init__(self) -> None:
-        _require_text(self.id, "episode id")
-        _require_text(self.user_id, "user id")
-        _require_text(self.summary, "episode summary")
+        require_text(self.id, "episode id")
+        require_text(self.user_id, "user id")
+        require_text(self.summary, "episode summary")
         _require_utc(self.created_at, "created_at")
         if not isinstance(self.status, EpisodeStatus):
             raise DomainError(f"invalid episode status: {self.status!r}")
@@ -93,10 +93,10 @@ class Skill:
     created_at: datetime
 
     def __post_init__(self) -> None:
-        _require_text(self.name, "skill name")
-        _require_text(self.description, "skill description")
+        require_text(self.name, "skill name")
+        require_text(self.description, "skill description")
         _require_utc(self.created_at, "created_at")
         if not isinstance(self.steps, tuple) or not self.steps:
             raise DomainError("skill steps must be a non-empty tuple")
         for step in self.steps:
-            _require_text(step, "skill step")
+            require_text(step, "skill step")
