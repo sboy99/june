@@ -4,7 +4,7 @@ import pytest
 
 from june.llm import ChatResponse, Message, ToolCall, ToolResult, ToolSpec, Usage
 from june.llm.adapters.mock import MockChatModel
-from june.runtime import AgentLoop, Budget, LoopStop
+from june.runtime import COMPACTED_PLACEHOLDER, AgentLoop, Budget, Compactor, LoopStop
 from june.shared import (
     DomainError,
     PermanentAdapterError,
@@ -234,3 +234,96 @@ def test_invalid_budgets_are_rejected(kwargs):
 def test_negative_retry_count_is_rejected():
     with pytest.raises(DomainError):
         AgentLoop(MockChatModel(), max_model_retries=-1)
+
+
+class Clock:
+    """Fake monotonic clock: each reading advances time by `tick`."""
+
+    def __init__(self, tick: float):
+        self._now, self._tick = 0.0, tick
+
+    def __call__(self) -> float:
+        self._now += self._tick
+        return self._now
+
+
+async def test_time_budget_stops_the_loop_before_the_next_model_call():
+    model = MockChatModel([tool_use(call("a")), tool_use(call("b", "echo")), answer()])
+    loop = AgentLoop(model, FakeTools(), Budget(max_seconds=2.5), monotonic=Clock(1.0))
+
+    result = await loop.run(INPUT)
+
+    assert result.stop is LoopStop.TIME_BUDGET
+    assert len(model.calls) == result.steps
+
+
+async def test_a_run_inside_the_time_limit_is_unaffected():
+    loop = AgentLoop(MockChatModel(["hi"]), budget=Budget(max_seconds=100), monotonic=Clock(0.1))
+
+    assert (await loop.run(INPUT)).stop is LoopStop.ANSWERED
+
+
+async def test_identical_repeated_calls_end_the_run_as_loop_detected():
+    repeat = tool_use(call("a"))
+    model = MockChatModel([repeat, tool_use(call("b")), tool_use(call("c")), answer()])
+    tools = FakeTools()
+
+    result = await AgentLoop(model, tools, Budget(max_repeated_calls=3)).run(INPUT)
+
+    assert result.stop is LoopStop.LOOP_DETECTED
+    assert result.steps == 3
+    assert len(tools.calls) == 2
+    last = result.added[-1]
+    assert last.tool_result.call_id == "c" and last.tool_result.is_error
+
+
+async def test_every_call_of_the_detecting_response_is_answered():
+    first = tool_use(call("a"))
+    second = tool_use(call("b"), call("c", "other"))
+    model = MockChatModel([first, second])
+    tools = FakeTools(specs=(ECHO, ToolSpec("other", "another tool")))
+
+    result = await AgentLoop(model, tools, Budget(max_repeated_calls=2)).run(INPUT)
+
+    answered = [m.tool_result.call_id for m in result.added if m.tool_result]
+    assert result.stop is LoopStop.LOOP_DETECTED
+    assert answered == ["a", "b", "c"]
+
+
+async def test_calls_with_different_arguments_are_not_a_loop():
+    def varied(call_id: str, text: str) -> ChatResponse:
+        return tool_use(ToolCall(call_id, "echo", {"text": text}))
+
+    model = MockChatModel([varied("a", "1"), varied("b", "2"), varied("c", "3"), answer()])
+
+    result = await AgentLoop(model, FakeTools(), Budget(max_repeated_calls=2)).run(INPUT)
+
+    assert result.stop is LoopStop.ANSWERED
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{"max_seconds": 0}, {"max_seconds": -1.0}, {"max_repeated_calls": 1}]
+)
+def test_invalid_time_and_repeat_limits_are_rejected(kwargs):
+    with pytest.raises(DomainError):
+        Budget(**kwargs)
+
+
+async def test_compaction_shrinks_the_prompt_but_added_keeps_full_tool_output():
+    big = "x" * 500
+    model = MockChatModel(
+        [tool_use(call("a")), tool_use(call("b", "other")), tool_use(call("c", "third")), answer()]
+    )
+    tools = FakeTools(
+        {"echo": big, "other": big, "third": big},
+        specs=(ECHO, ToolSpec("other", "o"), ToolSpec("third", "t")),
+    )
+    loop = AgentLoop(model, tools, compactor=Compactor(max_chars=800, keep_recent=2))
+
+    result = await loop.run(INPUT)
+
+    last_prompt = model.calls[-1].messages
+    prompt_tool_text = [m.content for m in last_prompt if m.role == "tool"]
+    assert COMPACTED_PLACEHOLDER in prompt_tool_text
+    assert [m.content for m in result.added if m.role == "tool"] == [big, big, big]
+    assert result.stop is LoopStop.ANSWERED

@@ -21,7 +21,7 @@ from june.memory.adapters.file_skill_store import FileSkillStore
 from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
 from june.memory.adapters.sqlite_index import SqliteVectorIndex
-from june.runtime import AgentLoop, ContextBuilder
+from june.runtime import AgentLoop, Compactor, ContextBuilder
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 
 MEMORY_DB_FILE = "memory.db"
@@ -116,5 +116,5 @@ def build_app(settings: Settings) -> App:
         forget=Forget(index),
         session_store=SqliteSessionStore(settings.data_dir / SESSIONS_DB_FILE),
         context_builder=ContextBuilder(soul),
-        agent_loop=AgentLoop(chat_model),
+        agent_loop=AgentLoop(chat_model, compactor=Compactor()),
     )
