@@ -27,3 +27,10 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context: `docs/GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+## Linear status workflow
+
+Keep the Linear issue status in step with the work. Update it yourself, without asking.
+
+- After writing the spec for an issue (`.scratch/<feature>/spec.md`): set the issue to **In Progress**.
+- After committing the implementation or creating its PR: set the issue to **In Review**. Do this for every issue the commit or PR covers.
