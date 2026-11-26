@@ -41,6 +41,8 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Loop guard** [runtime]: the Budget rule that ends a run as `loop_detected` when the model requests the same tool call (name and arguments) the allowed number of times.
 - **Compaction** [runtime] (`Compactor`): replacing the oldest tool results in the working conversation with a short placeholder when it passes its size limit; call ids stay, so every tool call keeps an answer.
 - **Session closer** [runtime] (`SessionCloser`): when a Session ends, stores its transcript as a pending Episode in the background and, every N ended Sessions of a user, runs Consolidation; failures are logged, never raised to the reply path.
+- **Chat service** [runtime] (`ChatService`): starts Sessions, answers one user message (recall, context, loop, save the Turn) and ends Sessions through the Session closer.
+- **Extractive summarizer** [memory] (`ExtractiveSummarizer`): the offline default Summarizer; keeps the transcript text cut to a limit and proposes no Facts.
 - **Tool runner** [runtime] (`ToolRunner`): the runtime-owned port that lists tool specs and runs one tool call; safety Gates will wrap it.
 - **Agent error** [shared]: an expected failure, rooted at `AgentError`, carrying a stable `code`, a message and a `retryable` flag.
 - **Retryable** [shared]: whether the runtime may safely retry the failed operation; false unless the error says otherwise.
