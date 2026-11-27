@@ -49,6 +49,7 @@ from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 from june.tool_runner import RegistryToolRunner
 from june.tooling import Tool, ToolRegistry
 from june.tooling.adapters.files import ReadFileTool, WriteFileTool
+from june.tooling.adapters.web_fetch import WebFetchTool
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
@@ -178,7 +179,7 @@ def build_app(settings: Settings) -> App:
         reply_guard=EndLoopGate(),
     )
     file_tools = build_file_tools(settings.workspace_dir, base_dir, protected_roots)
-    tool_registry = ToolRegistry(file_tools)
+    tool_registry = ToolRegistry([*file_tools, WebFetchTool()])
     tool_gate = ToolGate(
         tool_registry.risks,
         protected=protected,
