@@ -16,12 +16,12 @@ import socket
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urldefrag, urljoin
+from urllib.parse import urldefrag, urljoin, urlsplit
 
 import httpx
 
 from june.shared.errors import ToolError
-from june.tooling.adapters.net_policy import FetchTarget, is_public_address, parse_fetch_url
+from june.tooling.adapters.net_policy import FetchTarget, is_public_address, parse_fetch_url, refuse
 from june.tooling.ports import RiskLevel, ToolDefinition
 
 MAX_REDIRECTS = 5
@@ -31,6 +31,7 @@ REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _TEXT_APPLICATION_TYPES = frozenset({"application/json", "application/xml"})
 _TEXT_APPLICATION_SUFFIXES = ("+json", "+xml")
 _USER_AGENT = "june-web-fetch"
+_ACCEPT_ENCODING = "identity"
 _ACCEPT = "text/html, text/plain, application/json, application/xml;q=0.9, text/*;q=0.8"
 
 Resolver = Callable[[str, int], Awaitable[Sequence[str]]]
@@ -57,10 +58,6 @@ async def system_resolver(host: str, port: int) -> Sequence[str]:
     """Resolve `host` through the operating system; returns every address as text."""
     infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
     return [str(info[4][0]) for info in infos]
-
-
-def _refuse(reason: str) -> ToolError:
-    return ToolError(f"web_fetch: {reason}")
 
 
 def _is_literal_ip(host: str) -> bool:
@@ -125,67 +122,85 @@ class WebFetchTool:
             raise ToolError("web_fetch: argument 'url' must be a string")
         try:
             async with asyncio.timeout(self._limits.timeout_seconds):
-                async with self._client_factory() as client:
-                    return await self._fetch(client, url)
+                return await self._fetch(url)
         except TimeoutError as exc:
-            raise _refuse("request timed out") from exc
+            raise refuse("request timed out") from exc
         except httpx.HTTPError as exc:
-            raise _refuse("request failed") from exc
+            raise refuse("request failed") from exc
 
-    async def _fetch(self, client: httpx.AsyncClient, url: str) -> str:
+    async def _fetch(self, url: str) -> str:
         for _ in range(self._limits.max_redirects + 1):
             target = parse_fetch_url(url)
-            address = await self._validated_address(target)
-            async with client.stream(
-                "GET",
-                _connect_url(target, address),
-                headers={"Host": target.host_header, "User-Agent": _USER_AGENT, "Accept": _ACCEPT},
-                extensions={"sni_hostname": target.host},
-            ) as response:
-                if response.status_code not in REDIRECT_STATUSES:
-                    return await self._read(response, urldefrag(url).url)
-                location = response.headers.get("location")
+            addresses = await self._validated_addresses(target)
+            # A fresh client per hop: a pooled TLS connection is never reused across hostnames.
+            async with self._client_factory() as client:
+                response = await self._send_to_first_reachable(client, target, addresses)
+                try:
+                    if response.status_code not in REDIRECT_STATUSES:
+                        return await self._read(response, urldefrag(url).url)
+                    location = response.headers.get("location")
+                finally:
+                    await response.aclose()
             if not location:
-                raise _refuse("redirect without a location")
-            url = urljoin(url, location)
-        raise _refuse("too many redirects")
+                raise refuse("redirect without a location")
+            next_url = urljoin(url, location)
+            if target.scheme == "https" and urlsplit(next_url).scheme.lower() == "http":
+                raise refuse("refusing https to http redirect downgrade")
+            url = next_url
+        raise refuse("too many redirects")
 
-    async def _validated_address(self, target: FetchTarget) -> str:
-        """Resolve the host once and return an address, refusing if any address is non-public."""
+    async def _send_to_first_reachable(
+        self, client: httpx.AsyncClient, target: FetchTarget, addresses: Sequence[str]
+    ) -> httpx.Response:
+        """Send to each validated address in turn; only connect failures move to the next."""
+        for address in addresses:
+            request = client.build_request(
+                "GET",
+                target.connect_url(address),
+                headers={
+                    "Host": target.host_header,
+                    "User-Agent": _USER_AGENT,
+                    "Accept": _ACCEPT,
+                    "Accept-Encoding": _ACCEPT_ENCODING,
+                },
+                extensions={"sni_hostname": target.host},
+            )
+            try:
+                return await client.send(request, stream=True)
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                continue
+        raise refuse("could not connect to host")
+
+    async def _validated_addresses(self, target: FetchTarget) -> Sequence[str]:
+        """Resolve the host once; every address must be public or the whole host is refused."""
         if _is_literal_ip(target.host):
             addresses: Sequence[str] = [target.host]
         else:
             try:
                 addresses = await self._resolver(target.host, target.port)
-            except OSError as exc:
-                raise _refuse("could not resolve host") from exc
+            except (OSError, UnicodeError) as exc:
+                raise refuse("could not resolve host") from exc
         if not addresses:
-            raise _refuse("could not resolve host")
+            raise refuse("could not resolve host")
         if not all(is_public_address(address) for address in addresses):
-            raise _refuse("host resolves to a non-public address")
-        return addresses[0]
+            raise refuse("host resolves to a non-public address")
+        return addresses
 
     async def _read(self, response: httpx.Response, url: str) -> str:
         if not response.is_success:
-            raise _refuse(f"server returned status {response.status_code}")
+            raise refuse(f"server returned status {response.status_code}")
         if not _is_text_content_type(response.headers.get("content-type", "")):
-            raise _refuse("unsupported content type")
+            raise refuse("unsupported content type")
         limit = self._limits.max_bytes
         declared = response.headers.get("content-length", "")
         if declared.isdigit() and int(declared) > limit:
-            raise _refuse(f"response is too large (limit {limit} bytes)")
+            raise refuse(f"response is too large (limit {limit} bytes)")
         chunks: list[bytes] = []
         total = 0
         async for chunk in response.aiter_bytes():
             total += len(chunk)
             if total > limit:
-                raise _refuse(f"response is too large (limit {limit} bytes)")
+                raise refuse(f"response is too large (limit {limit} bytes)")
             chunks.append(chunk)
         text = _decode(b"".join(chunks), response.charset_encoding)
         return f"[untrusted web content from {url}]\n{text}"
-
-
-def _connect_url(target: FetchTarget, address: str) -> str:
-    """URL that connects to the validated `address` instead of resolving the host again."""
-    host = f"[{address}]" if ":" in address else address
-    return f"{target.scheme}://{host}:{target.port}{target.path_and_query}"

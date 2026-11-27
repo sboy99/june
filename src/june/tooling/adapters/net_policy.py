@@ -14,13 +14,35 @@ from urllib.parse import urlsplit
 
 from june.shared.errors import ToolError
 
-ALLOWED_SCHEMES = {"http": 80, "https": 443}
+DEFAULT_PORTS = {"http": 80, "https": 443}
 ALLOWED_PORTS = frozenset({80, 443, 8080, 8443})
 _NUMERIC_LABEL = re.compile(r"0x[0-9a-f]*|[0-9]+")
 _FORBIDDEN_CHARS = re.compile(r"[\x00-\x20\x7f\\]")
 _IPV4_COMPATIBLE = ipaddress.IPv6Network("::/96")
 _NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
 _LOW_32_BITS = 0xFFFFFFFF
+_MAX_LABEL_LENGTH = 63
+_MAX_HOST_LENGTH = 253
+# Explicit denylist on top of `is_global`, so the verdict does not depend on the Python patch level.
+_DENIED_NETWORKS = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in (
+        "0.0.0.0/8",
+        "100.64.0.0/10",
+        "192.0.0.0/24",
+        "192.0.2.0/24",
+        "198.18.0.0/15",
+        "198.51.100.0/24",
+        "203.0.113.0/24",
+        "240.0.0.0/4",
+        "100::/64",
+        "2001:db8::/32",
+        "64:ff9b:1::/48",
+        "fc00::/7",
+        "fe80::/10",
+        "fec0::/10",
+    )
+)
 
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 
@@ -34,11 +56,16 @@ class FetchTarget:
     port: int
     path_and_query: str
 
+    def connect_url(self, address: str) -> str:
+        """URL that connects to the validated `address` instead of resolving the host again."""
+        host = f"[{address}]" if ":" in address else address
+        return f"{self.scheme}://{host}:{self.port}{self.path_and_query}"
+
     @property
     def host_header(self) -> str:
         """Value for the Host header: bracketed IPv6, port only when not the scheme default."""
         host = f"[{self.host}]" if ":" in self.host else self.host
-        if self.port == ALLOWED_SCHEMES[self.scheme]:
+        if self.port == DEFAULT_PORTS[self.scheme]:
             return host
         return f"{host}:{self.port}"
 
@@ -61,6 +88,8 @@ def _is_public(ip: IPAddress) -> bool:
         embedded = _embedded_ipv4(ip)
         if embedded is not None:
             return _is_public(embedded)
+    if any(ip in network for network in _DENIED_NETWORKS):
+        return False
     return ip.is_global and not ip.is_multicast
 
 
@@ -73,50 +102,62 @@ def is_public_address(address: str) -> bool:
     return _is_public(ip)
 
 
-def _refuse(reason: str) -> ToolError:
+def refuse(reason: str) -> ToolError:
+    """The `ToolError` every `web_fetch` refusal is raised as."""
     return ToolError(f"web_fetch: {reason}")
+
+
+def _check_label_lengths(host: str) -> None:
+    labels = host.split(".")
+    if len(host) > _MAX_HOST_LENGTH or not all(
+        0 < len(label) <= _MAX_LABEL_LENGTH for label in labels
+    ):
+        raise refuse("invalid host")
 
 
 def _canonical_host(raw_host: str | None) -> str:
     """Lower-cased host, refusing empty, non-ASCII, scoped and encoded-IP hosts."""
     if not raw_host:
-        raise _refuse("invalid URL: missing host")
-    host = raw_host.lower().rstrip(".")
+        raise refuse("invalid URL: missing host")
+    host = raw_host.lower().removesuffix(".")
+    if not host:
+        raise refuse("invalid URL: missing host")
     if not host.isascii() or "%" in host:
-        raise _refuse("invalid host")
+        raise refuse("invalid host")
     if ":" in host:
         try:
             ipaddress.IPv6Address(host)
         except ValueError as exc:
-            raise _refuse("invalid host") from exc
+            raise refuse("invalid host") from exc
         return host
+    _check_label_lengths(host)
     if all(_NUMERIC_LABEL.fullmatch(label) for label in host.split(".")):
         try:
             ipaddress.IPv4Address(host)
         except ValueError as exc:
-            raise _refuse("host is an encoded IP address") from exc
+            raise refuse("host is an encoded IP address") from exc
     return host
 
 
 def parse_fetch_url(url: str) -> FetchTarget:
     """Validate `url` and split it into a `FetchTarget`, or raise `ToolError`."""
     if not url.strip() or _FORBIDDEN_CHARS.search(url):
-        raise _refuse("invalid URL")
+        raise refuse("invalid URL")
     try:
         parts = urlsplit(url)
         port = parts.port
         username, password, raw_host = parts.username, parts.password, parts.hostname
     except ValueError as exc:
-        raise _refuse("invalid URL") from exc
+        raise refuse("invalid URL") from exc
     scheme = parts.scheme.lower()
-    if scheme not in ALLOWED_SCHEMES:
-        raise _refuse("only http and https URLs are allowed")
+    if scheme not in DEFAULT_PORTS:
+        raise refuse("only http and https URLs are allowed")
     if username is not None or password is not None or "@" in parts.netloc:
-        raise _refuse("URLs with credentials are not allowed")
+        raise refuse("URLs with credentials are not allowed")
     host = _canonical_host(raw_host)
-    effective_port = ALLOWED_SCHEMES[scheme] if port is None else port
+    effective_port = DEFAULT_PORTS[scheme] if port is None else port
     if effective_port not in ALLOWED_PORTS:
-        raise _refuse(f"port {effective_port} is not allowed")
+        raise refuse(f"port {effective_port} is not allowed")
     path = parts.path or "/"
     path_and_query = f"{path}?{parts.query}" if parts.query else path
     return FetchTarget(scheme, host, effective_port, path_and_query)
