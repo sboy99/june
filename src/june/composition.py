@@ -1,5 +1,6 @@
 """Composition root: the only place where the application is wired together."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -46,7 +47,8 @@ from june.safety import (
 )
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 from june.tool_runner import RegistryToolRunner
-from june.tooling import ToolRegistry
+from june.tooling import Tool, ToolRegistry
+from june.tooling.adapters.files import ReadFileTool, WriteFileTool
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
@@ -123,6 +125,18 @@ def build_embedder(settings: Settings) -> Embedder:
     )
 
 
+def build_file_tools(
+    workspace: Path, base_dir: Path, protected_roots: Sequence[Path]
+) -> list[Tool]:
+    """Create the Workspace and build the confined file tools over it."""
+    try:
+        workspace.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ConfigError(f"workspace directory is not usable: {workspace}") from exc
+    absolute_roots = tuple(base_dir / root for root in protected_roots)
+    return [ReadFileTool(workspace), WriteFileTool(workspace, absolute_roots)]
+
+
 def build_app(settings: Settings) -> App:
     """Build the application from explicit settings; each part is built once and shared."""
     soul = load_persona(settings)
@@ -134,7 +148,9 @@ def build_app(settings: Settings) -> App:
     embedder = build_embedder(settings)
     index = SqliteVectorIndex(settings.data_dir / MEMORY_DB_FILE)
     clock, ids = SystemClock(), UuidGenerator()
-    protected = ProtectedPaths(Path.cwd(), (settings.persona_path, settings.data_dir / SKILLS_DIR))
+    base_dir = Path.cwd()
+    protected_roots = (settings.persona_path, settings.data_dir / SKILLS_DIR)
+    protected = ProtectedPaths(base_dir, protected_roots)
     memory_gate = MemoryWriteGate(memory_write_classifier(protected))
     remember_fact = RememberFact(index, embedder, clock, ids, guard=memory_gate)
     remember_episode = RememberEpisode(index, embedder, clock, ids, guard=memory_gate)
@@ -161,7 +177,8 @@ def build_app(settings: Settings) -> App:
         input_guard=InputGate(injection_classifier()),
         reply_guard=EndLoopGate(),
     )
-    tool_registry = ToolRegistry([])
+    file_tools = build_file_tools(settings.workspace_dir, base_dir, protected_roots)
+    tool_registry = ToolRegistry(file_tools)
     tool_gate = ToolGate(
         tool_registry.risks,
         protected=protected,

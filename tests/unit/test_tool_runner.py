@@ -43,7 +43,7 @@ async def test_built_app_gates_every_call(tmp_path):
     app = build_app(Settings(persona_path=persona, data_dir=tmp_path))
 
     assert isinstance(app.tool_runner, GatedToolRunner)
-    assert list(app.tool_runner.specs) == []
+    assert [spec.name for spec in app.tool_runner.specs] == ["read_file", "write_file"]
     with pytest.raises(SafetyDenied):
         await app.tool_runner.run(ToolCall("c1", "unknown", {}))
 
