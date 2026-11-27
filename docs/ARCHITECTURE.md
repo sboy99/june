@@ -8,7 +8,7 @@ A modular agent whose boundaries are enforced by tooling, so vendors can change 
 - `runtime`: the loop, budgets and context builder
 - `safety`: classifiers and judges behind ports
 - `conversation`: sessions and turns
-- `tooling`: the `Tool` port and `ToolRegistry`, the confined file tools `read_file` and `write_file` (Workspace-only; composition passes the protected roots as absolute paths), plus sandbox, MCP transport and sub-agent runner ports
+- `tooling`: the `Tool` port and `ToolRegistry`, the confined file tools `read_file` and `write_file` (Workspace-only; composition passes the protected roots as absolute paths), the SSRF-safe `web_fetch` (httpx lives in `tooling.adapters.web_fetch`; URL and address policy in `tooling.adapters.net_policy`; every hop is validated and the connection goes to the validated address; Risk `medium`; output framed as untrusted), plus sandbox, MCP transport and sub-agent runner ports
 - `scheduling`: job store port
 - `llm`: chat model port, mock adapter now
 - `interfaces`: the CLI
