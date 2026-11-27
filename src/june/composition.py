@@ -1,6 +1,7 @@
 """Composition root: the only place where the application is wired together."""
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from june.config import Settings
 from june.conversation import SessionStore
@@ -12,6 +13,7 @@ from june.memory import (
     Consolidate,
     Embedder,
     Forget,
+    GuardedSkillStore,
     Recall,
     RememberConversation,
     RememberEpisode,
@@ -25,11 +27,22 @@ from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
 from june.memory.adapters.sqlite_index import SqliteVectorIndex
 from june.runtime import AgentLoop, ChatService, Compactor, ContextBuilder, SessionCloser
+from june.safety import (
+    EndLoopGate,
+    InputGate,
+    MemoryWriteGate,
+    ProtectedPaths,
+    ToolGate,
+    injection_classifier,
+    memory_write_classifier,
+)
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
 SESSIONS_DB_FILE = "sessions.db"
+WRITE_TOOLS = frozenset({"write_file", "manage_skill"})
+SKILL_TOOLS = frozenset({"manage_skill"})
 
 
 @dataclass(frozen=True)
@@ -51,6 +64,7 @@ class App:
     agent_loop: AgentLoop
     session_closer: SessionCloser
     chat_service: ChatService
+    tool_gate: ToolGate
 
 
 def load_persona(settings: Settings) -> str:
@@ -108,11 +122,13 @@ def build_app(settings: Settings) -> App:
     embedder = build_embedder(settings)
     index = SqliteVectorIndex(settings.data_dir / MEMORY_DB_FILE)
     clock, ids = SystemClock(), UuidGenerator()
-    remember_fact = RememberFact(index, embedder, clock, ids)
-    remember_episode = RememberEpisode(index, embedder, clock, ids)
+    protected = ProtectedPaths(Path.cwd(), (settings.persona_path, settings.data_dir / SKILLS_DIR))
+    memory_gate = MemoryWriteGate(memory_write_classifier(protected))
+    remember_fact = RememberFact(index, embedder, clock, ids, guard=memory_gate)
+    remember_episode = RememberEpisode(index, embedder, clock, ids, guard=memory_gate)
     recall = Recall(index, embedder, clock)
     summarizer = ExtractiveSummarizer()
-    skill_store = FileSkillStore(settings.data_dir / SKILLS_DIR)
+    skill_store = GuardedSkillStore(FileSkillStore(settings.data_dir / SKILLS_DIR), memory_gate)
     session_store = SqliteSessionStore(settings.data_dir / SESSIONS_DB_FILE)
     context_builder = ContextBuilder(soul)
     agent_loop = AgentLoop(chat_model, compactor=Compactor())
@@ -130,6 +146,14 @@ def build_app(settings: Settings) -> App:
         clock=clock,
         ids=ids,
         closer=closer,
+        input_guard=InputGate(injection_classifier()),
+        reply_guard=EndLoopGate(),
+    )
+    tool_gate = ToolGate(
+        {},
+        protected=protected,
+        write_tools=WRITE_TOOLS,
+        skill_tools=SKILL_TOOLS,
     )
     return App(
         settings=settings,
@@ -147,4 +171,5 @@ def build_app(settings: Settings) -> App:
         agent_loop=agent_loop,
         session_closer=closer,
         chat_service=chat_service,
+        tool_gate=tool_gate,
     )

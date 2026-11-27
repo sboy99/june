@@ -13,8 +13,9 @@ from june.memory.ports import SearchFilter
 from june.observability import new_trace_id, request_context
 from june.runtime.context import ContextBuilder
 from june.runtime.loop import AgentLoop, LoopStop
+from june.runtime.ports import TextGuard
 from june.runtime.session_closer import SessionCloser
-from june.shared import Clock, DomainError, IdGenerator
+from june.shared import Clock, DomainError, IdGenerator, SafetyDenied
 
 RECALL_LIMIT = 5
 MIN_RECALL_SIMILARITY = 0.1
@@ -32,6 +33,10 @@ class ChatReply:
     error_code: str | None = None
 
 
+def _denied(session: Session, error: SafetyDenied) -> ChatReply:
+    return ChatReply("", session, LoopStop.SAFETY_DENIED, error.code)
+
+
 class ChatService:
     """Starts Sessions, answers messages and ends Sessions."""
 
@@ -47,6 +52,8 @@ class ChatService:
         clock: Clock,
         ids: IdGenerator,
         closer: SessionCloser,
+        input_guard: TextGuard | None = None,
+        reply_guard: TextGuard | None = None,
     ) -> None:
         self._sessions = sessions
         self._context_builder = context_builder
@@ -57,6 +64,8 @@ class ChatService:
         self._clock = clock
         self._ids = ids
         self._closer = closer
+        self._input_guard = input_guard
+        self._reply_guard = reply_guard
 
     async def start_session(self, user_id: str) -> Session:
         session = Session.start(user_id, self._ids.new_id(), self._clock.now())
@@ -78,6 +87,11 @@ class ChatService:
         await self._closer.drain()
 
     async def _answer(self, session: Session, message: str) -> ChatReply:
+        try:
+            if self._input_guard is not None:
+                message = await self._input_guard.check(message)
+        except SafetyDenied as exc:
+            return _denied(session, exc)
         memories = await self._recall.execute(
             session.user_id, message, limit=RECALL_LIMIT, min_similarity=MIN_RECALL_SIMILARITY
         )
@@ -97,6 +111,12 @@ class ChatService:
         result = await self._agent_loop.run(prompt)
         if result.stop not in _SAVED_STOPS or not result.reply.strip():
             return ChatReply("", session, result.stop, result.error_code)
-        updated = session.with_turn(Turn(message, result.reply, self._clock.now()))
+        try:
+            reply = result.reply
+            if self._reply_guard is not None:
+                reply = await self._reply_guard.check(reply)
+        except SafetyDenied as exc:
+            return _denied(session, exc)
+        updated = session.with_turn(Turn(message, reply, self._clock.now()))
         await self._sessions.save(updated)
-        return ChatReply(result.reply, updated, result.stop)
+        return ChatReply(reply, updated, result.stop)

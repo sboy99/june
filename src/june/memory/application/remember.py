@@ -3,7 +3,7 @@
 from dataclasses import replace
 
 from june.memory.domain import Episode, Fact, find_duplicate, supersede
-from june.memory.ports import Embedder, IndexEntry, SearchFilter, VectorIndex
+from june.memory.ports import Embedder, IndexEntry, SearchFilter, VectorIndex, WriteGuard
 from june.shared import Clock, IdGenerator
 
 _ACTIVE_FACTS = SearchFilter(kind="fact", active_only=True)
@@ -13,16 +13,24 @@ class RememberFact:
     """Store a fact, skipping duplicates and superseding facts with the same profile key."""
 
     def __init__(
-        self, index: VectorIndex, embedder: Embedder, clock: Clock, ids: IdGenerator
+        self,
+        index: VectorIndex,
+        embedder: Embedder,
+        clock: Clock,
+        ids: IdGenerator,
+        guard: WriteGuard | None = None,
     ) -> None:
         self._index = index
         self._embedder = embedder
         self._clock = clock
         self._ids = ids
+        self._guard = guard
 
     async def execute(
         self, user_id: str, text: str, source: str, profile_key: str | None = None
     ) -> Fact:
+        if self._guard is not None:
+            await self._guard.check(text)
         fact = Fact(
             id=self._ids.new_id(),
             user_id=user_id,
@@ -52,14 +60,22 @@ class RememberEpisode:
     """Store an episode summary as a pending episode."""
 
     def __init__(
-        self, index: VectorIndex, embedder: Embedder, clock: Clock, ids: IdGenerator
+        self,
+        index: VectorIndex,
+        embedder: Embedder,
+        clock: Clock,
+        ids: IdGenerator,
+        guard: WriteGuard | None = None,
     ) -> None:
         self._index = index
         self._embedder = embedder
         self._clock = clock
         self._ids = ids
+        self._guard = guard
 
     async def execute(self, user_id: str, summary: str) -> Episode:
+        if self._guard is not None:
+            await self._guard.check(summary)
         episode = Episode(
             id=self._ids.new_id(),
             user_id=user_id,

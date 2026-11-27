@@ -7,6 +7,7 @@ from june.composition import build_app, build_chat_model, build_embedder
 from june.config import Settings
 from june.llm.adapters.mock import MockChatModel
 from june.llm.adapters.openai_compatible import OpenAICompatibleChatModel
+from june.memory import GuardedSkillStore
 from june.memory.adapters.file_skill_store import FileSkillStore
 from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
@@ -89,7 +90,8 @@ def test_app_wires_memory_under_the_data_dir(persona, tmp_path):
 
     assert (data_dir / "memory.db").is_file()
     assert isinstance(app.vector_index, SqliteVectorIndex)
-    assert isinstance(app.skill_store, FileSkillStore)
+    assert isinstance(app.skill_store, GuardedSkillStore)
+    assert isinstance(app.skill_store._inner, FileSkillStore)
     assert isinstance(app.embedder, HashingEmbedder)
 
 

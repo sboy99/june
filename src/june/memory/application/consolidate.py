@@ -8,7 +8,7 @@ from june.memory.application.remember import RememberEpisode, RememberFact
 from june.memory.domain import Episode, EpisodeStatus, Fact
 from june.memory.ports import IndexEntry, SearchFilter, Summarizer, TranscriptTurn, VectorIndex
 from june.observability.redaction import redact_text
-from june.shared import DomainError
+from june.shared import DomainError, SafetyDenied
 from june.shared.helpers import require_text
 
 CONSOLIDATION_SOURCE = "consolidation"
@@ -78,9 +78,13 @@ class Consolidate:
             if contains_secret(candidate.text):
                 skipped += 1
                 continue
-            fact = await self._remember_fact.execute(
-                user_id, candidate.text, CONSOLIDATION_SOURCE, candidate.profile_key
-            )
+            try:
+                fact = await self._remember_fact.execute(
+                    user_id, candidate.text, CONSOLIDATION_SOURCE, candidate.profile_key
+                )
+            except SafetyDenied:
+                skipped += 1
+                continue
             if _is_new(fact, known):
                 known.add(fact.id)
                 stored += 1

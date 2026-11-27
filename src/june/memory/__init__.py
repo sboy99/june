@@ -4,6 +4,7 @@ from june.memory.application import (
     Consolidate,
     ConsolidationResult,
     Forget,
+    GuardedSkillStore,
     Recall,
     RecalledMemory,
     RememberConversation,
@@ -24,6 +25,7 @@ from june.memory.ports import (
     TranscriptTurn,
     Vector,
     VectorIndex,
+    WriteGuard,
 )
 
 __all__ = [
@@ -33,6 +35,7 @@ __all__ = [
     "Consolidate",
     "ConsolidationResult",
     "Forget",
+    "GuardedSkillStore",
     "Recall",
     "RecalledMemory",
     "RememberConversation",
@@ -50,4 +53,5 @@ __all__ = [
     "TranscriptTurn",
     "Vector",
     "VectorIndex",
+    "WriteGuard",
 ]

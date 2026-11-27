@@ -37,7 +37,7 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Working memory** [runtime]: the context the loop holds for the current turn.
 - **Budget** [runtime]: limits for a turn: steps, optional total tokens, optional seconds, and how many identical tool calls count as a loop.
 - **Agent loop** [runtime] (`AgentLoop`): asks the Chat model, runs the tools it requests, feeds results back, and repeats until a final answer or a Budget limit.
-- **Loop stop** [runtime] (`LoopStop`): the named reason a loop run ended: `answered`, `max_steps`, `token_budget`, `time_budget`, `loop_detected`, `truncated` or `model_error`.
+- **Loop stop** [runtime] (`LoopStop`): the named reason a loop run ended: `answered`, `max_steps`, `token_budget`, `time_budget`, `loop_detected`, `truncated` or `model_error` or `safety_denied` (set by the Chat service when a Gate blocks the turn).
 - **Loop guard** [runtime]: the Budget rule that ends a run as `loop_detected` when the model requests the same tool call (name and arguments) the allowed number of times.
 - **Compaction** [runtime] (`Compactor`): replacing the oldest tool results in the working conversation with a short placeholder when it passes its size limit; call ids stay, so every tool call keeps an answer.
 - **Session closer** [runtime] (`SessionCloser`): when a Session ends, stores its transcript as a pending Episode in the background and, every N ended Sessions of a user, runs Consolidation; failures are logged, never raised to the reply path.
@@ -50,6 +50,22 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Clock** [shared]: the source of the current time; a `Clock` port with a real `SystemClock` and a test `FixedClock`, always returning timezone-aware UTC.
 - **Id generator** [shared]: the source of new opaque ids (32 lowercase hex characters); an `IdGenerator` port with a `UuidGenerator` default, which tests replace with a fake.
 - **Risk level** [safety]: the classified danger of an action, which decides which gates apply.
+- **Decision** [safety]: what a check returns: `allow`, `deny` or `ask` (get explicit user confirmation; treated as `deny` until that flow exists).
+- **Verdict** [safety] (`Verdict`): an immutable Decision with its Risk level and a non-empty reason.
+- **Classifier** [safety]: the port for a cheap, synchronous, rule-based check of a text that returns a Verdict.
+- **Judge** [safety]: the port for an async, model-backed check that returns a Verdict; the composition root supplies the model.
+- **Gate policy** [safety] (`GatePolicy`): one row of the table saying what a Gate checks, which Decisions it may return, what it does when its checker fails, and which fields it logs.
+- **Decision step** [safety] (`decide`, `enforce`): the shared routine every Gate runs: Classifier, optional Judge for medium-risk allows, fail-closed on checker error, one log line with a subject digest; `enforce` raises `SafetyDenied` on `deny`.
+- **Input gate** [safety] (`InputGate`): Gate 1; denies prompt-injection phrases in user messages and fetched content and wraps fetched content as Untrusted content.
+- **Untrusted content** [safety]: fetched content wrapped in an `untrusted_content` block with its source, so the model treats it as data, never instructions.
+- **Tool gate** [safety] (`ToolGate`): Gate 2; rates each tool call by Risk level (unknown tools are `high`), runs `low` and `medium` calls, and asks the Approver for `high` ones.
+- **Approver** [safety]: the port that answers whether a high-risk tool call may run; none configured means deny.
+- **Tool guard** [runtime] (`ToolGuard`): the runtime-owned port that decides whether one tool call may run; `GatedToolRunner` asks it before delegating to the real `ToolRunner`.
+- **Memory-write gate** [safety] (`MemoryWriteGate`): Gate 3; denies secrets, planted standing instructions and injection phrases before text is stored as a Fact, Episode or Skill.
+- **Write guard** [memory] (`WriteGuard`): the memory-owned port that decides whether a text may be stored; `RememberFact`, `RememberEpisode` and `GuardedSkillStore` ask it first, and Consolidation skips a denied candidate.
+- **End-loop gate** [safety] (`EndLoopGate`): Gate 4; redacts secrets in the final reply, denies an empty or oversize reply, and fails open (returns the redacted reply) if a checker breaks.
+- **Protected paths** [safety] (`ProtectedPaths`): the roots (`persona/`, `skills/`) the agent may not write to; the Tool gate denies write-tool calls aimed at them (a skill-management tool may write under `skills/` only) and the memory-write Gate denies text that orders such a write.
+- **Text guard** [runtime] (`TextGuard`): the runtime-owned port that checks a text and returns it, possibly redacted, or raises `SafetyDenied`; the Input gate guards user messages and the End-loop gate guards replies in `ChatService`.
 - **Request context** [observability]: the `trace_id`, `session_id` and `user_id` bound to the current request in context variables and stamped on every log line; null outside a request.
 - **Trace id** [observability]: opaque id (from the shared id generator) that follows one request across modules in logs.
 - **Session id** [observability]: id of the `Session` a log line belongs to, carried in the request context.
