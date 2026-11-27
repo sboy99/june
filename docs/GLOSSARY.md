@@ -77,3 +77,5 @@ One definition per term. The owning module is in brackets. A new concept needs a
 - **Stop reason** [llm]: why the model stopped: `end_turn`, `tool_use` (it asked for tools) or `max_tokens`.
 - **Usage** [llm]: input and output token counts for one model call.
 - **Chat model** [llm]: the `ChatModel` port; one async `complete` call turns messages into a `ChatResponse`.
+- **Tool** [tooling] (`Tool`): one capability the model may call; a `ToolDefinition` (name, description, JSON schema), a Risk level and an async `run` that takes validated arguments and returns text.
+- **Tool registry** [tooling] (`ToolRegistry`): holds tools by name, rejects duplicates, validates arguments against the tool's schema before running it, and exposes a name-to-Risk-level table for the Tool gate; `RegistryToolRunner` adapts it into the runtime `ToolRunner`.
