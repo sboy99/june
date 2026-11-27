@@ -1,4 +1,5 @@
 import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -233,3 +234,62 @@ async def test_failed_write_keeps_the_original_file(workspace, monkeypatch):
 
     assert (workspace / "a.txt").read_text(encoding="utf-8") == "old"
     assert [p.name for p in workspace.iterdir()] == ["a.txt"]
+
+
+@pytest.mark.parametrize("path", ["Persona/soul.md", "SKILLS/x", "PERSONA"])
+async def test_write_refuses_protected_roots_in_other_letter_case(workspace, path):
+    roots = (workspace / "persona", workspace / "skills")
+
+    with pytest.raises(ToolError, match="protected"):
+        await WriteFileTool(workspace, roots).run({"path": path, "content": "x"})
+
+    assert list(workspace.iterdir()) == []
+
+
+async def test_overwrite_preserves_the_existing_file_mode(workspace):
+    target = workspace / "a.txt"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(0o640)
+
+    await WriteFileTool(workspace, ()).run({"path": "a.txt", "content": "new"})
+
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
+
+
+async def test_new_file_gets_the_umask_default_mode(workspace):
+    previous = os.umask(0o022)
+    try:
+        await WriteFileTool(workspace, ()).run({"path": "n.txt", "content": "x"})
+    finally:
+        os.umask(previous)
+
+    assert stat.S_IMODE((workspace / "n.txt").stat().st_mode) == 0o644
+
+
+async def test_failed_write_removes_parent_directories_it_created(workspace, monkeypatch):
+    (workspace / "keep").mkdir()
+
+    def boom(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "replace", boom)
+
+    with pytest.raises(ToolError, match="could not write"):
+        await WriteFileTool(workspace, ()).run({"path": "keep/a/b/c.txt", "content": "x"})
+
+    assert [p.name for p in workspace.iterdir()] == ["keep"]
+    assert list((workspace / "keep").iterdir()) == []
+
+
+@pytest.mark.parametrize("arguments", [{}, {"path": 3}, {"path": None}])
+async def test_read_with_bad_arguments_is_a_tool_error(workspace, arguments):
+    with pytest.raises(ToolError, match="read_file"):
+        await ReadFileTool(workspace).run(arguments)
+
+
+@pytest.mark.parametrize(
+    "arguments", [{}, {"path": "a.txt"}, {"content": "x"}, {"path": "a.txt", "content": 5}]
+)
+async def test_write_with_bad_arguments_is_a_tool_error(workspace, arguments):
+    with pytest.raises(ToolError, match="write_file"):
+        await WriteFileTool(workspace, ()).run(arguments)

@@ -29,7 +29,7 @@ The Tool registry has no tools. The agent needs to read and write files, but a f
 
 ## Implementation Decisions
 
-- `tooling/adapters/files.py` (adapters may use the filesystem): `ReadFileTool`, `WriteFileTool`, sharing a `WorkspacePath` resolver: `resolve(path) -> Path` raising `ToolError`. Resolver uses `Path.resolve()` on the Workspace root and on the target (for writes, resolve the deepest existing ancestor, then append the rest) and checks `is_relative_to`.
+- `tooling/adapters/files.py` (adapters may use the filesystem): `ReadFileTool`, `WriteFileTool`, sharing a `WorkspaceResolver` resolver: `resolve(path) -> Path` raising `ToolError`. Resolver uses `Path.resolve()` on the Workspace root and on the target (for writes, resolve the deepest existing ancestor, then append the rest) and checks `is_relative_to`.
 - `WriteFileTool(workspace, protected_roots)`: `protected_roots` are plain absolute paths passed in by composition (tooling cannot import safety); after resolving, a target equal to or under a root is refused.
 - Size limit: named constant `MAX_FILE_BYTES` (1 MiB), a constructor argument.
 - Writes use write-to-temp-then-rename in the same directory so a failed write never leaves a half file.
