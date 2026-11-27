@@ -44,5 +44,5 @@ class ToolRegistry:
         except AgentError:
             raise
         except Exception as exc:
-            _log.warning("tool %s failed", name, exc_info=True)
+            _log.warning("tool %s failed: %s", name, type(exc).__name__)
             raise ToolError(f"tool {name} failed") from exc

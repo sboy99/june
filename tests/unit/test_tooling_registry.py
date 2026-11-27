@@ -1,5 +1,5 @@
 import pytest
-from fake_tool import SCHEMA, FakeTool
+from fake_tool import FakeTool
 
 from june.shared.errors import SafetyDenied, ToolError
 from june.tooling import Tool, ToolRegistry
@@ -90,7 +90,6 @@ async def test_valid_optional_arguments_pass():
     )
 
     assert result == "ok"
-    assert SCHEMA["required"] == ["path"]
 
 
 async def test_unknown_keys_pass_when_additional_properties_is_not_false():
@@ -124,3 +123,71 @@ async def test_agent_errors_pass_through_unchanged(error):
         await registry.run("fake", {"path": "x"})
 
     assert info.value is error
+
+
+def _schema(rule):
+    return {"type": "object", "properties": {"v": rule}}
+
+
+@pytest.mark.parametrize(
+    ("rule", "value"),
+    [
+        ({"type": ["string", "null"]}, "x"),
+        ({"type": ["string", "null"]}, None),
+        ({"type": ["integer", "string"]}, 3),
+    ],
+)
+async def test_list_form_type_accepts_any_listed_type(rule, value):
+    registry = ToolRegistry([FakeTool(parameters=_schema(rule))])
+
+    assert await registry.run("fake", {"v": value}) == "ok"
+
+
+@pytest.mark.parametrize(
+    ("rule", "value"),
+    [
+        ({"type": ["string", "null"]}, 5),
+        ({"type": ["integer", "null"]}, True),
+        ({"type": "null"}, "x"),
+        ({"type": "mystery"}, "x"),
+        ({"type": ["string", "mystery"]}, 5),
+    ],
+)
+async def test_type_mismatch_or_unsupported_type_fails_closed(rule, value):
+    tool = FakeTool(parameters=_schema(rule))
+
+    with pytest.raises(ToolError, match="'v'"):
+        await ToolRegistry([tool]).run("fake", {"v": value})
+
+    assert tool.calls == []
+
+
+@pytest.mark.parametrize(
+    ("allowed", "value"),
+    [([1, 2], True), ([0], False), ([True], 1), ([False], 0)],
+)
+async def test_enum_does_not_confuse_bool_and_int(allowed, value):
+    registry = ToolRegistry([FakeTool(parameters=_schema({"enum": allowed}))])
+
+    with pytest.raises(ToolError, match="'v'"):
+        await registry.run("fake", {"v": value})
+
+
+async def test_enum_accepts_exact_matches():
+    registry = ToolRegistry([FakeTool(parameters=_schema({"enum": [1, True, "a"]}))])
+
+    assert await registry.run("fake", {"v": True}) == "ok"
+    assert await registry.run("fake", {"v": 1}) == "ok"
+
+
+async def test_unexpected_exception_log_carries_no_traceback(caplog):
+    registry = ToolRegistry([FakeTool(error=RuntimeError("boom sk-leak"))])
+
+    with caplog.at_level("WARNING"), pytest.raises(ToolError):
+        await registry.run("fake", {"path": "x"})
+
+    records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert records
+    assert all(r.exc_info is None for r in records)
+    assert "sk-leak" not in caplog.text
+    assert "RuntimeError" in caplog.text
