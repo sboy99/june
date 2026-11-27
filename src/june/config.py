@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     persona_path: Path = Path("persona/SOUL.md")
     data_dir: Path = Path("./data")
+    workspace_dir: Path = Path("./workspace")
     log_level: str = "INFO"
     llm_provider: Literal["mock", "openai"] = "mock"
     llm_model: str = "mock"

@@ -136,3 +136,12 @@ async def test_app_exposes_an_agent_loop_over_the_chat_model(persona, tmp_path):
     result = await app.agent_loop.run(app.context_builder.build("hello"))
 
     assert result.reply == "echo: hello"
+
+
+def test_registers_confined_file_tools_and_creates_the_workspace(persona, tmp_path):
+    workspace = tmp_path / "ws"
+
+    app = build_app(Settings(persona_path=persona, data_dir=tmp_path, workspace_dir=workspace))
+
+    assert workspace.is_dir()
+    assert dict(app.tool_registry.risks) == {"read_file": "low", "write_file": "high"}

@@ -17,6 +17,12 @@ LogLines = Callable[[], list[dict[str, Any]]]
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.fixture(autouse=True)
+def _isolated_workspace(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
+    """Keep `build_app` from creating ./workspace in the repository."""
+    monkeypatch.setenv("JUNE_WORKSPACE_DIR", str(tmp_path_factory.mktemp("workspace")))
+
+
 @pytest.fixture
 def run_june(tmp_path: Path):
     """Run `python -m june` as a subprocess with an isolated environment."""
