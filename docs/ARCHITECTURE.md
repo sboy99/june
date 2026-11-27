@@ -8,7 +8,7 @@ A modular agent whose boundaries are enforced by tooling, so vendors can change 
 - `runtime`: the loop, budgets and context builder
 - `safety`: classifiers and judges behind ports
 - `conversation`: sessions and turns
-- `tooling`: sandbox, MCP transport and sub-agent runner ports
+- `tooling`: the `Tool` port and `ToolRegistry`, plus sandbox, MCP transport and sub-agent runner ports
 - `scheduling`: job store port
 - `llm`: chat model port, mock adapter now
 - `interfaces`: the CLI
@@ -38,7 +38,7 @@ What each safety Gate checks, which Decisions it may return, and what happens wh
 | `memory_write` | text about to be remembered | `allow`, `deny` | `deny` |
 | `end_loop` | final assistant answer | `allow`, `deny` | `allow` |
 
-Gates are wired in `composition.py`: the Input and End-loop gates guard `ChatService`, the Memory-write gate guards memory writes and the Skill store, and `App.tool_gate` is ready to wrap the Phase 5 tool runner with `GatedToolRunner`. A blocked turn ends as `safety_denied`.
+Gates are wired in `composition.py`: the Input and End-loop gates guard `ChatService`, the Memory-write gate guards memory writes and the Skill store, and `App.tool_runner` is `GatedToolRunner(RegistryToolRunner(ToolRegistry))`, with `ToolGate` rating tools from the registry's Risk levels (see [ADR 0012](adr/0012-tool-definition-and-registry-adapter.md)). The registry starts empty until Phase 5 tools land. A blocked turn ends as `safety_denied`.
 
 Every decision logs `gate`, `decision`, `risk`, `reason` and `subject_digest` (a Content digest, never the raw text). `ask` is treated as `deny` until a confirmation flow exists.
 
@@ -50,7 +50,7 @@ Every decision logs `gate`, `decision`, `risk`, `reason` and `subject_digest` (a
 
 ## Where to add things
 - **Adapter**: add a file under the module's `adapters/`, implement the port, and register it in `composition.py`. For example a Qdrant memory adapter goes in `memory/adapters/qdrant.py`, implements `VectorIndex` and is registered in `composition.py`.
-- **Tool**: implement it behind the `tooling` ports and wire it in `composition.py`.
+- **Tool**: implement the `tooling.Tool` port and add it to the `ToolRegistry` built in `composition.py`.
 - **Module**: create a package with a docstring, `__all__`, `ports.py`, and place it in the layers contract.
 
 ## Deliberately not here

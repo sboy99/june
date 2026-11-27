@@ -26,7 +26,15 @@ from june.memory.adapters.file_skill_store import FileSkillStore
 from june.memory.adapters.hashing_embedder import HashingEmbedder
 from june.memory.adapters.openai_embedder import OpenAICompatibleEmbedder
 from june.memory.adapters.sqlite_index import SqliteVectorIndex
-from june.runtime import AgentLoop, ChatService, Compactor, ContextBuilder, SessionCloser
+from june.runtime import (
+    AgentLoop,
+    ChatService,
+    Compactor,
+    ContextBuilder,
+    GatedToolRunner,
+    SessionCloser,
+    ToolRunner,
+)
 from june.safety import (
     EndLoopGate,
     InputGate,
@@ -37,6 +45,8 @@ from june.safety import (
     memory_write_classifier,
 )
 from june.shared import ConfigError, PersonaNotFound, SystemClock, UuidGenerator
+from june.tool_runner import RegistryToolRunner
+from june.tooling import ToolRegistry
 
 MEMORY_DB_FILE = "memory.db"
 SKILLS_DIR = "skills"
@@ -65,6 +75,8 @@ class App:
     session_closer: SessionCloser
     chat_service: ChatService
     tool_gate: ToolGate
+    tool_registry: ToolRegistry
+    tool_runner: ToolRunner
 
 
 def load_persona(settings: Settings) -> str:
@@ -149,12 +161,14 @@ def build_app(settings: Settings) -> App:
         input_guard=InputGate(injection_classifier()),
         reply_guard=EndLoopGate(),
     )
+    tool_registry = ToolRegistry([])
     tool_gate = ToolGate(
-        {},
+        tool_registry.risks,
         protected=protected,
         write_tools=WRITE_TOOLS,
         skill_tools=SKILL_TOOLS,
     )
+    tool_runner = GatedToolRunner(RegistryToolRunner(tool_registry), tool_gate)
     return App(
         settings=settings,
         soul=soul,
@@ -172,4 +186,6 @@ def build_app(settings: Settings) -> App:
         session_closer=closer,
         chat_service=chat_service,
         tool_gate=tool_gate,
+        tool_registry=tool_registry,
+        tool_runner=tool_runner,
     )
